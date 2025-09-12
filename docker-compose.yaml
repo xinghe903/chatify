@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # Nginx 服务
+  nginx:
+    image: registry.cn-hangzhou.aliyuncs.com/xinghe903/nginx:1.25.2-alpine
+    container_name: my-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./volume/nginx/conf.d:/etc/nginx/conf.d
+      - ./volume/nginx/html:/usr/share/nginx/html
+      - ./volume/nginx/logs:/var/log/nginx
+    restart: unless-stopped
+    networks:
+      - chatify-network
+
+  # Redis 服务
+  redis:
+    image: registry.cn-hangzhou.aliyuncs.com/xinghe903/redis:7.0.12-alpine
+    container_name: my-redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./volume/redis/data:/data
+      - ./volume/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    environment:
+      - REDIS_PASSWORD=mysecretpassword
+    restart: unless-stopped
+    networks:
+      - chatify-network
+
+  kafka:
+    image: registry.cn-hangzhou.aliyuncs.com/xinghe903/kafka:3.7.0
+    container_name: my-kafka
+    hostname: my-kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      # KRaft 模式配置
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@my-kafka:9093
+      
+      # 监听器配置
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      
+      # 存储配置
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      
+      # 集群配置
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      
+      # 其他配置
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+    volumes:
+      - ./volume/kafka/data:/tmp/kraft-combined-logs
+    restart: unless-stopped
+
+  # MySQL 服务
+  mysql:
+    image: registry.cn-hangzhou.aliyuncs.com/xinghe903/mysql:8.0.33
+    container_name: my-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: chatify
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: mypassword
+    volumes:
+      - ./volume/mysql/data:/var/lib/mysql
+      - ./volume/mysql/init:/docker-entrypoint-initdb.d
+      - ./volume/mysql/conf.d:/etc/mysql/conf.d
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - chatify-network
+
+# 定义网络
+networks:
+  chatify-network:
+    driver: bridge
