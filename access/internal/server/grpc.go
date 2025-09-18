@@ -1,7 +1,7 @@
 package server
 
 import (
-	v1 "access/api/helloworld/v1"
+	v1 "access/api/access/v1"
 	"access/internal/conf"
 	"access/internal/service"
 
@@ -11,7 +11,8 @@ import (
 )
 
 // NewGRPCServer new a gRPC server.
-func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, logger log.Logger) *grpc.Server {
+func NewGRPCServer(cb *conf.Bootstrap, svc *service.AccessService, logger log.Logger) *grpc.Server {
+	c := cb.Server
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
@@ -27,6 +28,6 @@ func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, logger log.L
 		opts = append(opts, grpc.Timeout(c.Grpc.Timeout.AsDuration()))
 	}
 	srv := grpc.NewServer(opts...)
-	v1.RegisterGreeterServer(srv, greeter)
+	v1.RegisterAccessServiceServer(srv, svc)
 	return srv
 }

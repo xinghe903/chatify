@@ -1,7 +1,6 @@
 package server
 
 import (
-	v1 "access/api/helloworld/v1"
 	"access/internal/conf"
 	"access/internal/service"
 
@@ -11,7 +10,8 @@ import (
 )
 
 // NewHTTPServer new an HTTP server.
-func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, logger log.Logger) *http.Server {
+func NewHTTPServer(cb *conf.Bootstrap, svc *service.AccessService, logger log.Logger) *http.Server {
+	c := cb.Server
 	var opts = []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
@@ -27,6 +27,6 @@ func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, logger log.L
 		opts = append(opts, http.Timeout(c.Http.Timeout.AsDuration()))
 	}
 	srv := http.NewServer(opts...)
-	v1.RegisterGreeterHTTPServer(srv, greeter)
+	srv.Handle("/ws", svc)
 	return srv
 }

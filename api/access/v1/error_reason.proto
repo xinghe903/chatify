@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package access.v1;
+
+import "errors/errors.proto";
+
+option go_package = "api/access/v1;v1";
+
+enum ErrorReason {
+  option (errors.default_code) = 600;
+
+  OK = 0 [(errors.code) = 200];
+  USERNAME_REPEAT = 1001 [(errors.code) = 600];   // 用户名重复
+}
+
+

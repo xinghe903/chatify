@@ -6,7 +6,7 @@
 
 
 消息推送系统
-API Gateway 对外统一入口、认证、限流、路由转发   Nginx, JWT  无状态水平扩展、负载均衡、熔断降级
+API Gateway 对外统一入口、路由转发。使用nginx
 Access Service (接入层)    维护海量用户长连接、协议解析、上下行消息传递  Golang (利用其高并发特性), WebSocket, TCP, 自定义二进制协议 水平扩展、智能心跳、连接打散[bucket]
 Session Service (会话服务)  管理用户状态、路由信息（用户与Access Service的映射）   Redis (Cluster模式)   中央存储/分布式缓存、快速读写、集群化
 Logic Service (逻辑层) 消息路由、推送逻辑（单推、群推、广播）、调用业务处理  Golang, gRPC, Kafka 无状态设计、异步处理、消息队列削峰

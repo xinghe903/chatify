@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package push.v1;
+
+
+option go_package = "api/push/v1;v1";
+
+
+service PushService {
+  rpc PushMessage(PushMessageRequest) returns (PushMessageResponse);
+}
+
+message PushMessageRequest {
+  string message_id = 1; // 唯一消息ID（从 Logic Service 传递而来）
+  repeated string user_ids = 2; // 目标用户ID列表（Push Service 会根据这些用户ID查询 Session Service 获取 Access Service 地址）
+  bytes content = 3;      // 消息内容（与 Logic Service 传递的内容一致）
+  string content_type = 4; // 消息类型
+  int32 priority = 5;     // 优先级（0-9，0 最高）
+  int64 expire_time = 6;  // 过期时间戳（Unix 毫秒），0 表示不过期
+}
+
+message PushMessageResponse {
+  string message_id = 1;  // 返回的消息ID
+  bool success = 2;       // 整体成功与否（如果部分用户失败，可能仍返回 true，错误记录在日志中）
+  string error_message = 3; // 错误信息（如网络故障等）
+}
