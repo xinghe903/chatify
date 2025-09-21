@@ -29,11 +29,14 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 		return nil, nil, err
 	}
 	userRepo := data.NewUserRepo(dataData, logger)
-	logic := biz.NewLogic(logger, userRepo)
+	cacheRepo := data.NewCache(dataData)
+	pushRepo, cleanup2 := data.NewPushServiceClient(bootstrap, logger)
+	logic := biz.NewLogic(logger, userRepo, cacheRepo, pushRepo, bootstrap)
 	logicService := service.NewLogicService(logic)
 	grpcServer := server.NewGRPCServer(bootstrap, logicService, logger)
 	app := newApp(logger, grpcServer)
 	return app, func() {
+		cleanup2()
 		cleanup()
 	}, nil
 }

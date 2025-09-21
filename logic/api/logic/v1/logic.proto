@@ -11,17 +11,20 @@ service LogicService {
 }
 
 message SendMessageRequest {
-  string message_id = 1; // 唯一消息ID，用于去重和跟踪
-  repeated string target_user_ids = 2; // 目标用户ID列表（单推或群推）
-  string group_id = 3;    // 可选，群组ID（用于群推）；如果设置，则忽略 target_user_ids
+  string request_id = 1; // 请求ID，要求唯一性，客户端生成，服务端返回
+  int64 timestamp = 2;   // 消息发送时间戳 Unix时间戳 单位毫秒
+  bytes signature = 3;  // 签名，用于去重与校验 request_id + timestamp 
   bytes content = 4;      // 消息内容（二进制格式，可编码为 JSON、Protobuf 等）
   string content_type = 5; // 消息类型（如 "text/plain"、"application/json"）
   int32 priority = 6;     // 优先级（0-9，0 最高）
   int64 expire_time = 7;  // 过期时间戳（Unix 毫秒），0 表示不过期
+  repeated string target_user_ids = 8; // 目标用户ID列表（单推或群推）
+  string group_id = 9;    // 可选，群组ID（用于群推）；如果设置，则忽略 target_user_ids
 }
 
 message SendMessageResponse {
-  string message_id = 1;  // 返回的消息ID
+  string request_id = 1;  
   bool success = 2;       // 整体成功与否
   string error_message = 3; // 错误信息（如果 success 为 false）
+  string message_id = 4;
 }

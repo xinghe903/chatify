@@ -8,6 +8,12 @@ import "google/protobuf/duration.proto";
 message Bootstrap {
   Server server = 1;
   Data data = 2;
+  PushClient push_client = 3;
+}
+
+message PushClient {
+  string addr = 1;
+  google.protobuf.Duration timeout = 2;
 }
 
 message Server {
@@ -23,6 +29,7 @@ message Server {
   }
   HTTP http = 1;
   GRPC grpc = 2;
+  string secret = 3;
 }
 
 message Data {

@@ -5,6 +5,7 @@ server:
   grpc:
     addr: 0.0.0.0:9000
     timeout: 1s
+  secret: "123456"  # 内部系统secret固定
 data:
   database:
     driver: mysql
@@ -13,3 +14,8 @@ data:
     addr: 127.0.0.1:6379
     read_timeout: 0.2s
     write_timeout: 0.2s
+
+# Push服务配置
+push_client:
+  addr: localhost:30023
+  timeout: 5s
