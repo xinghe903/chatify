@@ -260,7 +260,7 @@ func NewReplayCheckerWithCache(cache Cache, expireTime, timeWindow int) *ReplayC
 
 // GenerateSignature 生成签名
 // requestID: 请求ID
-// timestamp: 时间戳
+// timestamp: 时间戳 毫秒
 // secretKey: 密钥
 // 返回: 十六进制编码的签名字符串
 func GenerateSignature(requestID string, timestamp int64, secretKey string) string {

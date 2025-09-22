@@ -62,39 +62,47 @@ func NewLogic(
 // @Return messageId 消息id
 // @Return error 错误
 func (l *Logic) SendMessage(ctx context.Context, message *bo.Message) (string, error) {
+	if message == nil {
+		return "", v1.ErrorInternalError("message is empty")
+	}
+	if len(message.Target) == 0 {
+		return "", v1.ErrorUserNotFound("target is empty")
+	}
 	// 生成唯一消息ID
 	messageId := generateUniqueMessageID()
 	message.MessageId = messageId
-
-	// 判断是单聊还是群聊
-	if len(message.UserIds) > 0 {
-		// 单聊或多人群发
-		for _, userId := range message.UserIds {
-			// 查询用户在线状态
-			isOnline, err := l.user.IsUserOnline(context.Background(), userId)
-			if err != nil {
-				l.log.WithContext(ctx).Errorf("Failed to check user %s online status: %v", userId, err)
-				continue
-			}
-
-			if isOnline {
-				// 在线用户通过gRPC调用Push服务推送消息
-				if err := l.pushMessageToUser(userId, message); err != nil {
-					l.log.WithContext(ctx).Errorf("Failed to push message to user %s: %v", userId, err)
-				}
-			} else {
-				// 离线用户写入离线存储（这里简化处理）
-				l.log.WithContext(ctx).Infof("User %s is offline, message will be stored in offline storage", userId)
-				// TODO: 实现离线消息存储逻辑
-			}
+	onlines := make([]*bo.TargetUser, 0)
+	offlines := make([]string, 0)
+	// 单聊
+	for _, target := range message.Target {
+		if target.GroupId != "" {
+			continue
 		}
-	} else if message.GroupId != "" {
-		// 群聊消息
-		l.log.WithContext(ctx).Infof("Group message received for group %s", message.GroupId)
-		// TODO: 实现群聊消息处理逻辑
-	} else {
-		return "", v1.ErrorUserNotFound("userIds len is 0 and groupId is empty")
+		// 查询用户在线状态
+		isOnline, err := l.user.IsUserOnline(ctx, target.UserId)
+		if err != nil {
+			l.log.WithContext(ctx).Errorf("Failed to check user %s online status: %v", target.UserId, err)
+			continue
+		}
+		if isOnline {
+			onlines = append(onlines, &bo.TargetUser{UserId: target.UserId, FromUserId: "xinghe"})
+		} else {
+			offlines = append(offlines, target.UserId)
+		}
 	}
+
+	if err := l.pushClient.SendMessage(ctx, &bo.Message{
+		Target:      onlines,
+		Content:     message.Content,
+		ContentType: message.ContentType,
+		ExpireTime:  message.ExpireTime,
+		MessageId:   messageId,
+	}); err != nil {
+		return "", v1.ErrorInternalError("failed to send message")
+	}
+
+	// 处理离线数据
+	l.log.WithContext(ctx).Debugf("Offline users: %v", offlines)
 
 	return messageId, nil
 }
@@ -128,7 +136,7 @@ func generateUniqueMessageID() string {
 }
 
 // pushMessageToUser 推送消息给用户
-func (l *Logic) pushMessageToUser(userId string, message *bo.Message) error {
+func (l *Logic) pushMessageToUser(ctx context.Context, userId string, message *bo.Message) error {
 	// 将消息内容转换为字节数组
 	// content, err := json.Marshal(message)
 	// if err != nil {
@@ -136,7 +144,7 @@ func (l *Logic) pushMessageToUser(userId string, message *bo.Message) error {
 	// }
 	l.log.Debugf("Pushing message to user %s: %s", userId, message)
 	// 调用Push服务的gRPC接口
-	if err := l.pushClient.SendMessage(context.Background(), message); err != nil {
+	if err := l.pushClient.SendMessage(ctx, message); err != nil {
 		return fmt.Errorf("failed to push message to user %s: %w", userId, err)
 	}
 

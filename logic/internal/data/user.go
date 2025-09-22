@@ -25,10 +25,8 @@ func (r *userRepo) IsUserOnline(ctx context.Context, userID string) (bool, error
 	if userID == "" {
 		return false, nil
 	}
-
 	// 构建Redis键
 	redisKey := formatUserOnlineKey(userID)
-
 	// 查询用户是否在线
 	exists, err := r.data.RedisClient().HGet(ctx, redisKey, "status").Result()
 	if err != nil {

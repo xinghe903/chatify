@@ -36,7 +36,9 @@ func NewPushServiceClient(c *conf.Bootstrap, logger log.Logger) (biz.PushRepo, f
 			timeout = cfg.Timeout.AsDuration()
 		}
 	}
-	return nil, nil
+	return &PushClient{
+		logger: log.NewHelper(log.With(logger, "module", "push-service-client")),
+	}, nil
 
 	// 创建gRPC连接
 	conn, err := grpc.DialContext(
@@ -69,12 +71,14 @@ func NewPushServiceClient(c *conf.Bootstrap, logger log.Logger) (biz.PushRepo, f
 }
 
 func (p *PushClient) SendMessage(ctx context.Context, message *bo.Message) error {
-	_, err := p.client.PushMessage(ctx, &pb.PushMessageRequest{
-		MessageId:   message.MessageId,
-		Content:     message.Content,
-		ContentType: message.ContentType,
-		ExpireTime:  message.ExpireTime,
-		UserIds:     message.UserIds,
-	})
-	return err
+	p.logger.WithContext(ctx).Debugf("Sending message to push service: %s", message.ToJsonStr())
+	return nil
+	// _, err := p.client.PushMessage(ctx, &pb.PushMessageRequest{
+	// 	MessageId:   message.MessageId,
+	// 	Content:     message.Content,
+	// 	ContentType: message.ContentType,
+	// 	ExpireTime:  message.ExpireTime,
+	// 	UserIds:     message.UserIds,
+	// })
+	// return err
 }

@@ -23,7 +23,6 @@ func NewLogicService(uc *biz.Logic) *LogicService {
 
 // SendMessage 发送消息
 func (s *LogicService) SendMessage(ctx context.Context, in *v1.SendMessageRequest) (*v1.SendMessageResponse, error) {
-	return &v1.SendMessageResponse{}, v1.ErrorMessageRepeat("message repeat. request_id=%s", in.RequestId)
 	if err := s.uc.ValidateRequest(ctx, &sign.SignParam{
 		RequestID: in.RequestId,
 		Signature: string(in.Signature),
