@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package offline.v1;
+
+import "im/v1/message.proto";
+
+option go_package = "api/offline/v1;v1";
+
+
+service OfflineService {
+  // 主动拉取离线消息（用户上线时）
+  rpc RetrieveOfflineMessages(RetrieveRequest) returns (RetrieveResponse);
+  
+  // 确认一批消息已送达（由 Push 调用）
+  rpc AcknowledgeMessages(AckRequest) returns (AckResponse);
+}
+
+message RetrieveRequest {
+  string user_id = 1;
+  int64 since_timestamp = 2;
+}
+
+message MessageItem {
+  string message_id = 1;
+  string sender = 2;
+  bytes content = 3;
+  int64 timestamp = 4;
+}
+
+message RetrieveResponse {
+  repeated im.v1.BaseMessage message = 1;
+}
+
+message AckRequest {
+  string user_id = 1;
+  repeated string message_ids = 2;
+}
+
+message AckResponse {
+  enum Code {
+    OK = 0;
+    FAILED_INVALID_USER = 1;
+  }
+  Code code = 1;
+  string message = 2;
+}

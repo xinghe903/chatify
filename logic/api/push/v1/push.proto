@@ -2,31 +2,42 @@ syntax = "proto3";
 
 package push.v1;
 
+import "im/v1/message.proto";
 
 option go_package = "api/push/v1;v1";
 
 
 service PushService {
-  rpc PushMessage(PushMessageRequest) returns (PushMessageResponse);
+  // 向指定用户推送消息（同步备用通道）
+  rpc PushToUser(PushRequest) returns (PushResponse);
+  
+  // 批量查询用户在线状态
+  rpc BatchQueryOnline(BatchQueryRequest) returns (BatchQueryResponse);
 }
 
-message TargetUser { 
-  string user_id = 1;
-  string gourp_id = 2;
-  string from_user_id = 3;
+message PushRequest {
+  string task_id = 1;
+  im.v1.BaseMessage message = 2;
 }
 
-message PushMessageRequest {
-  string message_id = 1; // 唯一消息ID（从 Logic Service 传递而来）
-  repeated TargetUser target = 2; // 目标用户ID列表（Push Service 会根据这些用户ID查询 Session Service 获取 Access Service 地址）
-  bytes content = 3;      // 消息内容（与 Logic Service 传递的内容一致）
-  string content_type = 4; // 消息类型
-  int32 priority = 5;     // 优先级（0-9，0 最高）
-  int64 expire_time = 6;  // 过期时间戳（Unix 毫秒），0 表示不过期
+message PushResponse {
+  enum Code {
+    OK = 0;
+    FAILED_INVALID_USER = 1;
+  }
+  Code code = 1;
+  string message = 2;
 }
 
-message PushMessageResponse {
-  string message_id = 1;  // 返回的消息ID
-  bool success = 2;       // 整体成功与否（如果部分用户失败，可能仍返回 true，错误记录在日志中）
-  string error_message = 3; // 错误信息（如网络故障等）
+message BatchQueryRequest {
+  repeated string user_ids = 1;
+}
+
+message BatchQueryResponse {
+  message UserStatus {
+    string user_id = 1;
+    bool online = 2;
+    string node = 3;
+  }
+  repeated UserStatus statuses = 1;
 }
