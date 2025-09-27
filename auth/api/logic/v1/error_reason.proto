@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package logic.v1;
+
+import "errors/errors.proto";
+
+option go_package = "api/logic/v1;v1";
+
+enum ErrorReason {
+  option (errors.default_code) = 600;
+
+  OK = 0 [(errors.code) = 200];
+  MESSAGE_REPEAT = 10001 [(errors.code) = 600];   // 消息重复
+  MESSAGE_EXPIRED = 10002 [(errors.code) = 600];  // 消息过期
+  PERMISSION_DENIED = 10003 [(errors.code) = 600]; // 校验签名失败
+  INTERNAL_ERROR = 10004 [(errors.code) = 600];  //  内部错误
+  USER_NOT_FOUND = 10005 [(errors.code) = 600];   // 发送用户不存在
+   
+}

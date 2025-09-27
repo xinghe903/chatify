@@ -1,0 +1,24 @@
+server:
+  http:
+    network: tcp
+    addr: 0.0.0.0:8080
+    timeout: 1s
+  grpc:
+    network: tcp
+    addr: 0.0.0.0:9090
+    timeout: 1s
+
+data:
+  database:
+    driver: mysql
+    source: root:password@tcp(localhost:3306)/auth?parseTime=true
+  redis:
+    network: tcp
+    addr: localhost:6379
+    read_timeout: 1s
+    write_timeout: 1s
+
+auth:
+  jwt_secret: your-secret-key-here
+  access_token_ttl: 3600        # 1小时
+  refresh_token_ttl: 604800     # 7天
