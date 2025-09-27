@@ -19,7 +19,7 @@ service AccessService {
 // 连接-消息映射
 message ConnectionMessage {
   string connection_id = 1; // 目标连接 ID（Access 内部唯一）
-  im.v1.BaseMessage message = 2; // 对应连接的消息体
+  repeated im.v1.BaseMessage message = 2; // 对应连接的消息体  max size: 1000
 }
 
 // Push 服务请求下发消息

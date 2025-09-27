@@ -6,8 +6,8 @@ services:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/nginx:1.25.2-alpine
     container_name: my-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "1372:80"
+      - "1373:443"
     volumes:
       - ./volume/nginx/conf.d:/etc/nginx/conf.d
       - ./volume/nginx/html:/usr/share/nginx/html
@@ -22,7 +22,7 @@ services:
     container_name: my-redis
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
-      - "6379:6379"
+      - "16379:6379"
     volumes:
       - ./volume/redis/data:/data
       - ./volume/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -37,8 +37,8 @@ services:
     container_name: my-kafka
     hostname: my-kafka
     ports:
-      - "9092:9092"
-      - "9093:9093"
+      - "19092:9092"
+      - "19093:9093"
     environment:
       # KRaft 模式配置
       KAFKA_NODE_ID: 1
@@ -70,7 +70,7 @@ services:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/mysql:8.0.33
     container_name: my-mysql
     ports:
-      - "3306:3306"
+      - "13306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: chatify
@@ -82,6 +82,34 @@ services:
       - ./volume/mysql/conf.d:/etc/mysql/conf.d
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - chatify-network
+
+  etcd:
+    image: registry.cn-hangzhou.aliyuncs.com/xinghe903/etcd:v3.5.18
+    container_name: etcd-single
+    ports:
+      - "12379:2379"  # 客户端通信
+      - "12380:2380"  # 节点间通信（即使单节点也建议暴露）
+    environment:
+      - ETCDCTL_API=3
+      - ETCD_NAME=etcd-single
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER=etcd-single=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - ./volume/etcd/data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=http://localhost:2379"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
     networks:
       - chatify-network
 
