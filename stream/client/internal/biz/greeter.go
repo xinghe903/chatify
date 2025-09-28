@@ -36,5 +36,11 @@ func NewGreeterUsecase(repo GreeterRepo, logger log.Logger, client ServiceClient
 // CreateGreeter creates a Greeter, and returns the new Greeter.
 func (uc *GreeterUsecase) CreateGreeter(ctx context.Context, g *Greeter) (*Greeter, error) {
 	uc.log.WithContext(ctx).Infof("CreateGreeter: %v", g.Hello)
+	// 正确调用Chat方法并处理结果和错误
+	_, err := uc.ServiceClient.Chat(ctx, "hello")
+	if err != nil {
+		uc.log.WithContext(ctx).Errorf("Failed to call service Chat: %v", err)
+		return nil, err
+	}
 	return uc.repo.Save(ctx, g)
 }

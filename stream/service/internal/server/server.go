@@ -40,7 +40,7 @@ func InitTraceProvider(url string) {
 			tracesdk.WithBatcher(exp),
 			// 在资源中记录有关此应用程序的信息
 			tracesdk.WithResource(resource.NewSchemaless(
-				semconv.ServiceNameKey.String("service-name"),
+				semconv.ServiceNameKey.String("service-server"),
 				attribute.String("exporter", "jaeger"),
 				// attribute.Float64("float", 312.23),
 			)),

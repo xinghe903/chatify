@@ -14,13 +14,14 @@ import (
 )
 
 // NewGRPCServer new a gRPC server.
-func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, logger log.Logger) *grpc.Server {
+func NewGRPCServer(c *conf.Server, svc *service.ChatService, logger log.Logger) *grpc.Server {
 	InitTraceProvider("http://127.0.0.1:14268/api/traces")
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
 			tracing.Server(),
 		),
+		grpc.StreamInterceptor(NewStreamTracingInterceptor("service-name").StreamServerInterceptor()),
 		grpc.Options(
 			ggrpc.StatsHandler(otelgrpc.NewServerHandler()),
 		),
@@ -35,6 +36,6 @@ func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, logger log.L
 		opts = append(opts, grpc.Timeout(c.Grpc.Timeout.AsDuration()))
 	}
 	srv := grpc.NewServer(opts...)
-	v1.RegisterServiceServer(srv, greeter)
+	v1.RegisterServiceServer(srv, svc)
 	return srv
 }
