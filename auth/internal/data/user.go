@@ -37,6 +37,7 @@ const (
 	EmailPrefix        = "user:email:"
 	PhonePrefix        = "user:phone:"
 	RefreshTokenPrefix = "token:refresh:"
+	AccessTokenPrefix  = "token:access:"
 	UserTokenPrefix    = "user:token:"
 )
 
@@ -185,10 +186,15 @@ func (r *userRepo) CheckPassword(ctx context.Context, userID string, password st
 
 // SaveToken 保存用户的token信息
 func (r *userRepo) SaveToken(ctx context.Context, userID string, accessToken string, refreshToken string, accessExpires, refreshExpires int64) error {
+	// 计算过期时间戳
+	accessExpiresAt := time.Now().Unix() + accessExpires
+
 	// 事务：保存token信息
 	pipe := r.client.Pipeline()
 	// 存储refresh token到userID的映射，设置过期时间
 	pipe.Set(ctx, RefreshTokenPrefix+refreshToken, userID, time.Duration(refreshExpires)*time.Second)
+	// 存储access token到用户信息的映射，设置过期时间
+	pipe.Set(ctx, AccessTokenPrefix+accessToken, fmt.Sprintf("%s:%d", userID, accessExpiresAt), time.Duration(accessExpires)*time.Second)
 	// 存储用户的当前refresh token
 	pipe.Set(ctx, UserTokenPrefix+userID, refreshToken, time.Duration(refreshExpires)*time.Second)
 	_, err := pipe.Exec(ctx)
@@ -226,4 +232,30 @@ func (r *userRepo) GetTokenInfo(ctx context.Context, refreshToken string) (strin
 	}
 
 	return userID, nil
+}
+
+// VerifyAccessToken 验证访问令牌
+func (r *userRepo) VerifyAccessToken(ctx context.Context, accessToken string) (string, int64, error) {
+	// 获取存储的令牌信息
+	tokenInfo, err := r.client.Get(ctx, AccessTokenPrefix+accessToken).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", 0, fmt.Errorf("invalid or expired access token")
+		}
+		return "", 0, fmt.Errorf("failed to verify access token: %w", err)
+	}
+
+	// 解析令牌信息，格式为"userID:expiresAt"
+	var userID string
+	var expiresAt int64
+	fmt.Sscanf(tokenInfo, "%s:%d", &userID, &expiresAt)
+
+	// 检查令牌是否已过期
+	if time.Now().Unix() > expiresAt {
+		// 删除过期的令牌
+		r.client.Del(ctx, AccessTokenPrefix+accessToken)
+		return "", 0, fmt.Errorf("access token has expired")
+	}
+
+	return userID, expiresAt, nil
 }

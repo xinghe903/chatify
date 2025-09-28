@@ -31,7 +31,7 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	userRepo := data.NewUserRepo(dataData, logger)
 	cacheRepo := data.NewCacheRepo(dataData)
 	auth := biz.NewAuth(logger, userRepo, cacheRepo, bootstrap)
-	authService := service.NewAuthService(auth)
+	authService := service.NewAuthService(logger, auth)
 	grpcServer := server.NewGRPCServer(bootstrap, authService, logger)
 	httpServer := server.NewHTTPServer(bootstrap, authService, logger)
 	app := newApp(logger, grpcServer, httpServer)

@@ -1,7 +1,7 @@
 package server
 
 import (
-	v1 "auth/api/auth/v1"
+	v1 "api/auth/v1"
 	"auth/internal/conf"
 	"auth/internal/service"
 

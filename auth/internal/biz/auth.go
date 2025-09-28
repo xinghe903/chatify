@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
-	v1 "auth/api/auth/v1"
 	"auth/internal/biz/bo"
 	"auth/internal/conf"
 
@@ -28,6 +28,7 @@ type UserRepo interface {
 	SaveToken(ctx context.Context, userID string, accessToken string, refreshToken string, accessExpires, refreshExpires int64) error
 	InvalidateToken(ctx context.Context, userID string, refreshToken string) error
 	GetTokenInfo(ctx context.Context, refreshToken string) (string, error)
+	VerifyAccessToken(ctx context.Context, accessToken string) (string, int64, error) // 验证访问令牌
 }
 
 // CacheRepo 缓存仓库接口
@@ -62,18 +63,21 @@ func NewAuth(
 func (a *Auth) Register(ctx context.Context, username, email, password, phone string) (string, error) {
 	// 验证用户名是否已存在
 	if _, err := a.repo.GetByUsername(ctx, username); err == nil {
-		return "", v1.ErrorUsernameAlreadyExists("username already exists")
+		// return "", v1.ErrorUsernameAlreadyExists("username already exists")
+		return "", errors.New("username already exists")
 	}
 
 	// 验证邮箱是否已存在
 	if _, err := a.repo.GetByEmail(ctx, email); err == nil {
-		return "", v1.ErrorEmailAlreadyExists("email already exists")
+		// return "", v1.ErrorEmailAlreadyExists("email already exists")
+		return "", errors.New("email already exists")
 	}
 
 	// 验证手机号是否已存在（如果提供）
 	if phone != "" {
 		if _, err := a.repo.GetByPhone(ctx, phone); err == nil {
-			return "", v1.ErrorPhoneAlreadyExists("phone already exists")
+			// return "", v1.ErrorPhoneAlreadyExists("phone already exists")
+			return "", errors.New("phone already exists")
 		}
 	}
 
@@ -81,7 +85,8 @@ func (a *Auth) Register(ctx context.Context, username, email, password, phone st
 	user := bo.NewUser(username, email, password, phone)
 	if err := a.repo.Create(ctx, user); err != nil {
 		a.log.Errorf("Failed to create user: %v", err)
-		return "", v1.ErrorInternalError("failed to register user")
+		// return "", v1.ErrorInternalError("failed to register user")
+		return "", fmt.Errorf("failed to create user: %w", err)
 	}
 
 	return user.ID, nil
@@ -94,7 +99,8 @@ func (a *Auth) Login(ctx context.Context, identifier, password string) (*LoginRe
 
 	// 根据标识符类型（用户名、邮箱或手机号）查找用户
 	if identifier == "" {
-		return nil, v1.ErrorInvalidArgument("identifier cannot be empty")
+		// return nil, v1.ErrorInvalidArgument("identifier cannot be empty")
+		return nil, errors.New("identifier cannot be empty")
 	}
 
 	// 尝试用用户名查找
@@ -106,7 +112,8 @@ func (a *Auth) Login(ctx context.Context, identifier, password string) (*LoginRe
 			// 尝试用手机号查找
 			user, err = a.repo.GetByPhone(ctx, identifier)
 			if err != nil {
-				return nil, v1.ErrorUserNotFound("user not found")
+				// return nil, v1.ErrorUserNotFound("user not found")
+				return nil, errors.New("user not found")
 			}
 		}
 	}
@@ -115,23 +122,27 @@ func (a *Auth) Login(ctx context.Context, identifier, password string) (*LoginRe
 	valid, err := a.repo.CheckPassword(ctx, user.ID, password)
 	if err != nil {
 		a.log.Errorf("Failed to check password: %v", err)
-		return nil, v1.ErrorInternalError("failed to login")
+		// return nil, v1.ErrorInternalError("failed to login")
+		return nil, errors.New("failed to login")
 	}
 	if !valid {
-		return nil, v1.ErrorInvalidPassword("invalid password")
+		// return nil, v1.ErrorInvalidPassword("invalid password")
+		return nil, errors.New("invalid password")
 	}
 
 	// 生成token
 	accessToken, refreshToken, err := a.generateTokens(ctx, user.ID)
 	if err != nil {
 		a.log.Errorf("Failed to generate tokens: %v", err)
-		return nil, v1.ErrorInternalError("failed to generate tokens")
+		// return nil, v1.ErrorInternalError("failed to generate tokens")
+		return nil, errors.New("failed to generate tokens")
 	}
 
 	// 保存token信息
 	if err := a.repo.SaveToken(ctx, user.ID, accessToken, refreshToken, a.config.Auth.AccessTokenTtl, a.config.Auth.RefreshTokenTtl); err != nil {
 		a.log.Errorf("Failed to save token: %v", err)
-		return nil, v1.ErrorInternalError("failed to save token")
+		// return nil, v1.ErrorInternalError("failed to save token")
+		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
 	return &LoginResult{
@@ -148,7 +159,8 @@ func (a *Auth) Logout(ctx context.Context, userID string, refreshToken string) e
 	// 使token失效
 	if err := a.repo.InvalidateToken(ctx, userID, refreshToken); err != nil {
 		a.log.Errorf("Failed to invalidate token: %v", err)
-		return v1.ErrorInternalError("failed to logout")
+		// return v1.ErrorInternalError("failed to logout")
+		return fmt.Errorf("failed to invalidate token: %w", err)
 	}
 
 	return nil
@@ -160,16 +172,19 @@ func (a *Auth) RevokeUser(ctx context.Context, userID string, password string) e
 	valid, err := a.repo.CheckPassword(ctx, userID, password)
 	if err != nil {
 		a.log.Errorf("Failed to check password: %v", err)
-		return v1.ErrorInternalError("failed to revoke user")
+		// return v1.ErrorInternalError("failed to revoke user")
+		return errors.New("failed to revoke user")
 	}
 	if !valid {
-		return v1.ErrorInvalidPassword("invalid password")
+		// return v1.ErrorInvalidPassword("invalid password")
+		return errors.New("invalid password")
 	}
 
 	// 删除用户
 	if err := a.repo.Delete(ctx, userID); err != nil {
 		a.log.Errorf("Failed to delete user: %v", err)
-		return v1.ErrorInternalError("failed to revoke user")
+		// return v1.ErrorInternalError("failed to revoke user")
+		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
 	return nil
@@ -181,20 +196,23 @@ func (a *Auth) RefreshToken(ctx context.Context, refreshToken string) (*TokenRes
 	userID, err := a.repo.GetTokenInfo(ctx, refreshToken)
 	if err != nil {
 		a.log.Errorf("Failed to get token info: %v", err)
-		return nil, v1.ErrorInvalidToken("invalid refresh token")
+		// return nil, v1.ErrorInvalidToken("invalid refresh token")
+		return nil, errors.New("invalid refresh token")
 	}
 
 	// 生成新的access token
 	newAccessToken, err := a.generateAccessToken(ctx, userID)
 	if err != nil {
 		a.log.Errorf("Failed to generate access token: %v", err)
-		return nil, v1.ErrorInternalError("failed to refresh token")
+		// return nil, v1.ErrorInternalError("failed to refresh token")
+		return nil, errors.New("failed to generate access token")
 	}
 
 	// 保存新的access token信息（这里复用原有的refresh token）
 	if err := a.repo.SaveToken(ctx, userID, newAccessToken, refreshToken, a.config.Auth.AccessTokenTtl, a.config.Auth.RefreshTokenTtl); err != nil {
 		a.log.Errorf("Failed to save token: %v", err)
-		return nil, v1.ErrorInternalError("failed to save token")
+		// return nil, v1.ErrorInternalError("failed to save token")
+		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
 	return &TokenResult{
@@ -217,6 +235,13 @@ type LoginResult struct {
 type TokenResult struct {
 	AccessToken     string
 	AccessExpiresIn int64
+}
+
+// VerifyTokenResult 验证令牌结果结构
+type VerifyTokenResult struct {
+	Username    string
+	UserID      string
+	ExpiresAt   int64
 }
 
 // generateTokens 生成访问令牌和刷新令牌
@@ -266,4 +291,34 @@ func generateRandomString(length int) (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(bytes)[:length], nil
+}
+
+// VerifyToken 验证访问令牌
+func (a *Auth) VerifyToken(ctx context.Context, accessToken string) (*VerifyTokenResult, error) {
+	if accessToken == "" {
+		a.log.Error("Access token cannot be empty")
+		return nil, errors.New("access token cannot be empty")
+	}
+
+	// 调用数据仓库验证令牌
+	userID, expiresAt, err := a.repo.VerifyAccessToken(ctx, accessToken)
+	if err != nil {
+		a.log.Errorf("Failed to verify access token: %v", err)
+		return nil, err
+	}
+
+	// 获取用户信息以获取用户名
+	user, err := a.repo.GetByID(ctx, userID)
+	if err != nil {
+		a.log.Errorf("Failed to get user info: %v", err)
+		return nil, err
+	}
+
+	// 验证成功
+	return &VerifyTokenResult{
+		Username:    user.Username,
+		UserID:      userID,
+		ExpiresAt:   expiresAt,
+	},
+		nil
 }

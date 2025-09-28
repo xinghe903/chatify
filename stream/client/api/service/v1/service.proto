@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package service.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "api/service/v1;v1";
+
+
+service Service {
+  rpc Chat (stream ChatReq) returns (stream ChatRsp);
+}
+
+
+message ChatReq {
+  string name = 1;
+}
+
+
+message ChatRsp {
+  string message = 1;
+}

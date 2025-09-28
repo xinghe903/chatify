@@ -1,6 +1,7 @@
 package server
 
 import (
+	v1 "api/auth/v1"
 	"auth/internal/conf"
 	"auth/internal/service"
 
@@ -27,6 +28,7 @@ func NewHTTPServer(cb *conf.Bootstrap, svc *service.AuthService, logger log.Logg
 		opts = append(opts, http.Timeout(c.Http.Timeout.AsDuration()))
 	}
 	srv := http.NewServer(opts...)
+	v1.RegisterAuthServiceHTTPServer(srv, svc)
 	// srv.Handle("/ws", svc)
 	return srv
 }

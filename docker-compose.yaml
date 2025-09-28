@@ -4,7 +4,7 @@ services:
   # Nginx 服务
   nginx:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/nginx:1.25.2-alpine
-    container_name: my-nginx
+    container_name: chatify-nginx
     ports:
       - "1372:80"
       - "1373:443"
@@ -19,7 +19,7 @@ services:
   # Redis 服务
   redis:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/redis:7.0.12-alpine
-    container_name: my-redis
+    container_name: chatify-redis
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
       - "16379:6379"
@@ -34,8 +34,8 @@ services:
 
   kafka:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/kafka:3.7.0
-    container_name: my-kafka
-    hostname: my-kafka
+    container_name: chatify-kafka
+    hostname: chatify-kafka
     ports:
       - "19092:9092"
       - "19093:9093"
@@ -44,7 +44,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@my-kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@chatify-kafka:9093
       
       # 监听器配置
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
@@ -64,11 +64,13 @@ services:
     volumes:
       - ./volume/kafka/data:/tmp/kraft-combined-logs
     restart: unless-stopped
+    networks:
+      - chatify-network
 
   # MySQL 服务
   mysql:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/mysql:8.0.33
-    container_name: my-mysql
+    container_name: chatify-mysql
     ports:
       - "13306:3306"
     environment:

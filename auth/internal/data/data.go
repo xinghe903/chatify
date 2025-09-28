@@ -47,6 +47,7 @@ func NewData(cb *conf.Bootstrap, logger log.Logger) (*Data, func(), error) {
 
 // initRedisClient 初始化Redis客户端
 func initRedisClient(c *conf.Data, logger log.Logger) (*redis.Client, error) {
+	return nil, nil
 	// 默认配置
 	network := "tcp"
 	addr := "localhost:6379"
