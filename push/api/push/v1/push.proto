@@ -17,13 +17,13 @@ service PushService {
 
 message PushRequest {
   string task_id = 1;
-  im.v1.BaseMessage message = 2;
+  repeated im.v1.BaseMessage message = 2;   // max size: 1000
 }
 
 message PushResponse {
   enum Code {
     OK = 0;
-    FAILED_INVALID_USER = 1;
+    TOO_MANY_MESSAGE = 1;
   }
   Code code = 1;
   string message = 2;

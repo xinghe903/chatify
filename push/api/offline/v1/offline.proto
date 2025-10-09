@@ -13,22 +13,18 @@ service OfflineService {
   
   // 确认一批消息已送达（由 Push 调用）
   rpc AcknowledgeMessages(AckRequest) returns (AckResponse);
+
+  // 归档一批离线消息
+  rpc ArchiveMessages(ArchiveRequest) returns (ArchiveResponse);
 }
 
 message RetrieveRequest {
   string user_id = 1;
-  int64 since_timestamp = 2;
 }
 
-message MessageItem {
-  string message_id = 1;
-  string sender = 2;
-  bytes content = 3;
-  int64 timestamp = 4;
-}
 
 message RetrieveResponse {
-  repeated im.v1.BaseMessage message = 1;
+  repeated im.v1.BaseMessage message = 1;   // max size: 1000
 }
 
 message AckRequest {
@@ -40,6 +36,20 @@ message AckResponse {
   enum Code {
     OK = 0;
     FAILED_INVALID_USER = 1;
+  }
+  Code code = 1;
+  string message = 2;
+}
+
+
+message ArchiveRequest {
+  repeated im.v1.BaseMessage message = 1;   // max size: 1000
+}
+
+message ArchiveResponse {
+  enum Code {
+    OK = 0;
+    TOO_MANY_MESSAGE = 1;
   }
   Code code = 1;
   string message = 2;

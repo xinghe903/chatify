@@ -27,10 +27,27 @@ message ChatInputResponse {
   string message = 2;
 }
 
+enum PushType {
+  PUSH_TYPE_UNSPECIFIED = 0;
+  NOTICE = 1;  // 公告
+  INFORM = 2;  // 通知
+}
+
 message SystemPushRequest {
-  im.v1.BaseMessage message = 1;
+  string content_id = 1;
+  bytes content = 2;
+  int64 timestamp = 3;
+  PushType push_type = 4;
+  string from_user_id = 5;
+  repeated string     to_user_ids = 6;   // max size: 1000
+  string expire_time = 7;
 }
 
 message SystemPushResponse {
-  bool success = 1;
+  enum Code {
+    OK = 0;
+    TOO_MANY_TARGET = 1;
+  }
+  Code code = 1;
+  string message = 2;
 }
