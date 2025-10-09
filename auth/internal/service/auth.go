@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	v1 "api/auth/v1"
 	"auth/internal/biz"
+	"auth/internal/biz/bo"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
@@ -30,25 +32,17 @@ func NewAuthService(logger log.Logger, uc *biz.Auth) *AuthService {
 // Register 注册用户
 func (s *AuthService) Register(ctx context.Context, in *v1.RegisterRequest) (*v1.RegisterResponse, error) {
 	s.log.WithContext(ctx).Debugf("Register: %v", in)
-	return &v1.RegisterResponse{
-		UserId: "001",
-	}, nil
-	// 验证请求参数
-	if in.Username == "" {
-		// return nil, v1.ErrorInvalidArgument("username cannot be empty")
-		return nil, errors.New("username cannot be empty")
-	}
-	if in.Email == "" {
-		// return nil, v1.ErrorInvalidArgument("email cannot be empty")
-		return nil, errors.New("email cannot be empty")
-	}
-	if in.Password == "" {
-		// return nil, v1.ErrorInvalidArgument("password cannot be empty")
-		return nil, errors.New("password cannot be empty")
+	if strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.Password) == "" {
+		return nil, v1.ErrorNameOrPasswordInvalid("username or password cannot be empty")
 	}
 
 	// 调用业务逻辑层进行用户注册
-	userID, err := s.uc.Register(ctx, in.Username, in.Email, in.Password, in.Phone)
+	userID, err := s.uc.Register(ctx, &bo.User{
+		Username: in.Username,
+		Email:    in.Email,
+		Password: in.Password,
+		Phone:    in.Phone,
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,11 @@ enum ErrorReason {
 
   OK = 0 [(errors.code) = 200];
   USERNAME_REPEAT = 1001 [(errors.code) = 600];   // 用户名重复
+  USER_NOT_FOUND = 1002 [(errors.code) = 600];    // 用户不存在
+  USER_DISABLED = 1003 [(errors.code) = 600];   // 用户被禁用
+  USER_NAME_INVALID = 1004 [(errors.code) = 600];  // 用户名无效
+  USER_PASSWORD_INVALID = 1005 [(errors.code) = 600];  // 密码无效
+  NAME_OR_PASSWORD_INVALID = 1006 [(errors.code) = 600];  // 用户名或密码无效
 }
 
 
