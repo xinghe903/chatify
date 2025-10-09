@@ -1,89 +1,64 @@
 package biz
 
 import (
-	"log"
+	"context"
+	"errors"
 	"sync"
 	"time"
+
+	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/gorilla/websocket"
 )
 
 // Client 代表一个 WebSocket 客户端连接
 type Client struct {
-	Conn   *websocket.Conn
-	Send   chan []byte
-	UserID string
+	Conn           *websocket.Conn
+	Send           chan []byte
+	UserID         string
+	readCtxCancel  context.CancelCauseFunc
+	writeCtxCancel context.CancelCauseFunc
 }
 
 // Manager 管理所有客户端连接
 type Manager struct {
-	clients    map[string]*Client
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
+	clients map[string]*Client
+	mu      sync.RWMutex
+	log     *log.Helper
 }
 
 // NewManager 创建新的连接管理器
-func NewManager() *Manager {
+func NewManager(logger log.Logger) *Manager {
 	return &Manager{
-		clients:    make(map[string]*Client),
-		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		clients: make(map[string]*Client),
+		log:     log.NewHelper(logger),
 	}
 }
 
-// Start 启动管理器事件循环
-func (m *Manager) Start() {
-	log.Println("WebSocket manager started")
-	go m.broadcastListener()
-}
-
-func (m *Manager) RegisterClient(client *Client) {
-	m.register <- client
+func (m *Manager) RegisterClient(ctx context.Context, client *Client) {
+	var rctx, wctx context.Context
+	rctx, client.readCtxCancel = context.WithCancelCause(ctx)
+	wctx, client.writeCtxCancel = context.WithCancelCause(ctx)
+	go m.readPump(rctx, client)
+	go m.writePump(wctx, client)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.clients[client.UserID] = client
 }
 
 func (m *Manager) UnregisterClient(client *Client) {
-	m.unregister <- client
-}
-
-func (m *Manager) broadcastListener() {
-	for {
-		select {
-		case message := <-m.broadcast:
-			m.mu.RLock()
-			for id, client := range m.clients {
-				select {
-				case client.Send <- message:
-				default:
-					// 发送阻塞，关闭连接
-					close(client.Send)
-					delete(m.clients, id)
-				}
-			}
-			m.mu.RUnlock()
-
-		case client := <-m.register:
-			m.mu.Lock()
-			m.clients[client.UserID] = client
-			m.mu.Unlock()
-			log.Printf("Client registered: %s", client.UserID)
-
-		case client := <-m.unregister:
-			m.mu.Lock()
-			if _, ok := m.clients[client.UserID]; ok {
-				close(client.Send)
-				delete(m.clients, client.UserID)
-				log.Printf("Client unregistered: %s", client.UserID)
-			}
-			m.mu.Unlock()
-		}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.clients[client.UserID]; !ok {
+		m.log.Errorf("User %s is not exist", client.UserID)
+		return
 	}
+	client.Conn.Close()
+	delete(m.clients, client.UserID)
 }
 
 // SendToUser 向指定用户发送消息
-func (m *Manager) SendToUser(userID string, message []byte) {
+func (m *Manager) SendToUser(ctx context.Context, userID string, message []byte) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if client, ok := m.clients[userID]; ok {
@@ -91,7 +66,7 @@ func (m *Manager) SendToUser(userID string, message []byte) {
 		case client.Send <- message:
 		default:
 			// 队列满，主动踢出
-			m.unregister <- client
+			m.log.WithContext(ctx).Warnf("User %s is full, kick out", userID)
 		}
 	}
 }
@@ -103,12 +78,12 @@ func (m *Manager) Count() int {
 	return len(m.clients)
 }
 
-func (m *Manager) readPump(client *Client) {
+func (m *Manager) readPump(ctx context.Context, client *Client) {
 	defer func() {
-		m.unregister <- client
-		client.Conn.Close()
+		m.UnregisterClient(client)
+		client.readCtxCancel(errors.New("read unregister cause"))
 	}()
-
+	// 无法写入消息，则认为改连接已经断开
 	client.Conn.SetReadLimit(512 << 10) // 512KB
 	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	client.Conn.SetPongHandler(func(string) error {
@@ -119,18 +94,26 @@ func (m *Manager) readPump(client *Client) {
 	for {
 		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
+			m.log.WithContext(ctx).Warnf("Read message error: %v", err)
 			break
 		}
-		// 处理上行消息（可转发给 Logic Service）
-		log.Printf("Received from %s: %s", client.UserID, message)
+		select {
+		case <-ctx.Done():
+			m.log.WithContext(ctx).Errorf("read context done")
+			return
+		default:
+		}
+		// 处理上行消息
+		m.log.WithContext(ctx).Debugf("Received from %s: %s", client.UserID, string(message))
 	}
 }
 
-func (m *Manager) writePump(client *Client) {
+func (m *Manager) writePump(ctx context.Context, client *Client) {
 	ticker := time.NewTicker(54 * time.Second)
 	defer func() {
 		ticker.Stop()
-		m.unregister <- client
+		m.UnregisterClient(client)
+		client.writeCtxCancel(errors.New("write unregister cause"))
 	}()
 
 	for {
@@ -138,19 +121,23 @@ func (m *Manager) writePump(client *Client) {
 		case message, ok := <-client.Send:
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
+				m.log.WithContext(ctx).Errorf("userId=%s, client disconnected", client.UserID)
 				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-
 			err := client.Conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
+				m.log.WithContext(ctx).Errorf("userId=%s, Write message error: %v", client.UserID, err)
 				return
 			}
+			m.log.WithContext(ctx).Debugf("userId=%s, Sent to %s", client.UserID, string(message))
 		case <-ticker.C:
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				m.log.WithContext(ctx).Errorf("userId=%s, Write ping error: %v", client.UserID, err)
 				return
 			}
+			m.log.WithContext(ctx).Debugf("userId=%s, Sent ping", client.UserID)
 		}
 	}
 }

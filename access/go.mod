@@ -2,6 +2,11 @@ module access
 
 go 1.23.0
 
+replace (
+	api => ./api
+	pkg => ../pkg
+)
+
 require (
 	github.com/go-kratos/kratos/v2 v2.8.4
 	github.com/google/uuid v1.6.0
