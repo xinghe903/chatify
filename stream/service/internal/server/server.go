@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
@@ -46,6 +47,8 @@ func InitTraceProvider(url string) {
 			)),
 		)
 		fmt.Printf("init trace success\n")
+
+		otel.SetTextMapPropagator(&propagation.TraceContext{})
 		otel.SetTracerProvider(tp)
 	})
 }

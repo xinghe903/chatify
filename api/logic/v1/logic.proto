@@ -39,7 +39,7 @@ message SystemPushRequest {
   int64 timestamp = 3;
   PushType push_type = 4;
   string from_user_id = 5;
-  repeated string to_user_ids = 6;   // max size: 1000
+  repeated string     to_user_ids = 6;   // max size: 1000
   string expire_time = 7;
 }
 

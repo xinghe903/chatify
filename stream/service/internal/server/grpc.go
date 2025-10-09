@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	v1 "service/api/service/v1"
 	"service/internal/conf"
 	"service/internal/service"
@@ -11,7 +12,41 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	ggrpc "google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
+
+// unaryMetadataServerInterceptor 是一个服务端一元拦截器，用于打印收到的一元RPC请求头
+func unaryMetadataServerInterceptor(logger log.Logger) ggrpc.UnaryServerInterceptor {
+	log := log.NewHelper(logger)
+	return func(ctx context.Context, req interface{}, info *ggrpc.UnaryServerInfo, handler ggrpc.UnaryHandler) (interface{}, error) {
+		// 从上下文中获取元数据
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok {
+			log.WithContext(ctx).Debugf("Server received unary metadata: %v", md)
+		} else {
+			log.WithContext(ctx).Debugf("Server received unary with no metadata")
+		}
+		// 继续处理请求
+		return handler(ctx, req)
+	}
+}
+
+// streamMetadataInterceptor 是一个流式拦截器，用于打印流式 RPC 的请求头
+func streamMetadataInterceptor(logger log.Logger) ggrpc.StreamServerInterceptor {
+	log := log.NewHelper(logger)
+	return func(srv interface{}, ss ggrpc.ServerStream, info *ggrpc.StreamServerInfo, handler ggrpc.StreamHandler) error {
+		// 从上下文中获取元数据
+		ctx := ss.Context()
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok {
+			log.WithContext(ctx).Debugf("Server received stream metadata: %v", md)
+		} else {
+			log.WithContext(ctx).Debugf("Server received stream with no metadata")
+		}
+		// 继续处理流式请求
+		return handler(srv, ss)
+	}
+}
 
 // NewGRPCServer new a gRPC server.
 func NewGRPCServer(c *conf.Server, svc *service.ChatService, logger log.Logger) *grpc.Server {
@@ -21,9 +56,10 @@ func NewGRPCServer(c *conf.Server, svc *service.ChatService, logger log.Logger) 
 			recovery.Recovery(),
 			tracing.Server(),
 		),
-		grpc.StreamInterceptor(NewStreamTracingInterceptor("service-name").StreamServerInterceptor()),
 		grpc.Options(
 			ggrpc.StatsHandler(otelgrpc.NewServerHandler()),
+			ggrpc.UnaryInterceptor(unaryMetadataServerInterceptor(logger)),
+			ggrpc.StreamInterceptor(streamMetadataInterceptor(logger)),
 		),
 	}
 	if c.Grpc.Network != "" {

@@ -2,8 +2,6 @@ package biz
 
 import (
 	"context"
-
-	"api/service/v1"
 )
 
 // ServiceClient 是调用 service 服务的客户端接口
@@ -12,5 +10,5 @@ type ServiceClient interface {
 	Chat(ctx context.Context, name string) (string, error)
 
 	// ChatStream 处理双向流式 RPC，返回一个可以发送和接收消息的流
-	ChatStream(ctx context.Context) (v1.Service_ChatClient, error)
+	ChatStream(ctx context.Context, name string) (string, error)
 }

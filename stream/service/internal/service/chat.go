@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 
 	v1 "service/api/service/v1"
 	"service/internal/biz"
@@ -30,8 +31,13 @@ func (s *ChatService) SayHello(ctx context.Context, in *v1.ChatReq) (*v1.ChatRsp
 	return &v1.ChatRsp{Message: "Hello " + g.Hello}, nil
 }
 
+func (s *ChatService) Chat(ctx context.Context, req *v1.ChatReq) (*v1.ChatRsp, error) {
+	s.log.WithContext(ctx).Debugf("Received message: %+v\n", req)
+	return &v1.ChatRsp{Message: "Hello " + req.Name}, nil
+}
+
 // Chat implements a bidirectional streaming RPC
-func (s *ChatService) Chat(stream v1.Service_ChatServer) error {
+func (s *ChatService) ChatStream(stream v1.Service_ChatStreamServer) error {
 	ctx := stream.Context()
 	// 建立连接
 	s.log.WithContext(ctx).Debugf("Chat connection established")
@@ -41,6 +47,15 @@ func (s *ChatService) Chat(stream v1.Service_ChatServer) error {
 		req, err := stream.Recv()
 		ctx = stream.Context()
 		if err != nil {
+			// 客户端断开连接
+			if ctx.Err() == context.Canceled {
+				s.log.WithContext(ctx).Debugf("Client canceled the request")
+				return nil
+			}
+			if err == io.EOF {
+				s.log.WithContext(ctx).Debugf("Client disconnected")
+				return nil
+			}
 			s.log.WithContext(ctx).Errorf("Stream closed or error occurred:", err)
 			return err
 		}
