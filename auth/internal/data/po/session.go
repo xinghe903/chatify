@@ -1,0 +1,30 @@
+package po
+
+import (
+	"pkg/model"
+	"strings"
+
+	"gorm.io/gorm"
+)
+
+// Session 登录会话表
+type Session struct {
+	model.BaseModel
+	UserID           string `gorm:"type:varchar(36);index:idx_user_id;not null" json:"user_id"`
+	AccessToken      string `gorm:"type:varchar(255);not null" json:"access_token"`
+	RefreshToken     string `gorm:"type:varchar(255);not null" json:"refresh_token"`
+	AccessExpiresIn  int64  `gorm:"not null" json:"access_expires_in"`  // 秒级时间戳
+	RefreshExpiresIn int64  `gorm:"not null" json:"refresh_expires_in"` // 秒级时间戳
+}
+
+// TableName 指定表名
+func (Session) TableName() string {
+	return "chatify_auth_session"
+}
+
+func (s *Session) BeforeCreate(tx *gorm.DB) error {
+	if !strings.HasPrefix(s.ID, "sid") {
+		s.ID = "sid" + s.ID
+	}
+	return nil
+}

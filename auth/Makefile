@@ -47,12 +47,12 @@ api:
 .PHONY: build
 # build
 build:
-	mkdir -p bin/ && go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/ ./...
+	mkdir -p bin/ && GOWORK=off go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/ ./...
 
 .PHONY: generate
 # generate
 generate:
-	go generate ./...
+	GOWORK=off go generate ./...
 	go mod tidy
 
 .PHONY: all

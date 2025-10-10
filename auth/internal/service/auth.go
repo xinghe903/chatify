@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"pkg/auth"
 	"strconv"
-	"strings"
 
 	v1 "api/auth/v1"
 	"auth/internal/biz"
@@ -32,8 +32,15 @@ func NewAuthService(logger log.Logger, uc *biz.Auth) *AuthService {
 // Register 注册用户
 func (s *AuthService) Register(ctx context.Context, in *v1.RegisterRequest) (*v1.RegisterResponse, error) {
 	s.log.WithContext(ctx).Debugf("Register: %v", in)
-	if strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.Password) == "" {
-		return nil, v1.ErrorNameOrPasswordInvalid("username or password cannot be empty")
+	// 验证请求参数
+	if in.Username == "" {
+		return nil, v1.ErrorUserNameInvalid("username cannot be empty")
+	}
+	if in.Email == "" {
+		return nil, v1.ErrorEmailInvalid("email cannot be empty")
+	}
+	if in.Password == "" {
+		return nil, v1.ErrorPasswordInvalid("password cannot be empty")
 	}
 
 	// 调用业务逻辑层进行用户注册
@@ -44,6 +51,7 @@ func (s *AuthService) Register(ctx context.Context, in *v1.RegisterRequest) (*v1
 		Phone:    in.Phone,
 	})
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("Failed to register user: %v", err)
 		return nil, err
 	}
 
@@ -57,18 +65,6 @@ func (s *AuthService) Register(ctx context.Context, in *v1.RegisterRequest) (*v1
 // Login 用户登录
 func (s *AuthService) Login(ctx context.Context, in *v1.LoginRequest) (*v1.LoginResponse, error) {
 	s.log.WithContext(ctx).Debugf("Login: %v", in)
-	tr, ok := transport.FromServerContext(ctx)
-	if !ok {
-		s.log.WithContext(ctx).Error("Failed to get transport from context")
-		return nil, errors.New("Failed to get transport from context")
-	}
-	uid := tr.RequestHeader().Get("X-User-ID")
-	s.log.WithContext(ctx).Debugf("X-User-ID: %s", uid)
-	return &v1.LoginResponse{
-		UserId:       "001",
-		AccessToken:  "access_token",
-		RefreshToken: "refresh_token",
-	}, nil
 	// 验证请求参数
 	var identifier string
 	switch {
@@ -79,18 +75,17 @@ func (s *AuthService) Login(ctx context.Context, in *v1.LoginRequest) (*v1.Login
 	case in.Phone != "":
 		identifier = in.Phone
 	default:
-		// return nil, v1.ErrorInvalidArgument("username, email or phone is required")
-		return nil, errors.New("username, email or phone is required")
+		return nil, v1.ErrorUserNotFound("username, email or phone is required")
 	}
 
 	if in.Password == "" {
-		// return nil, v1.ErrorInvalidArgument("password cannot be empty")
-		return nil, errors.New("password cannot be empty")
+		return nil, v1.ErrorPasswordInvalid("password cannot be empty")
 	}
 
 	// 调用业务逻辑层进行用户登录
 	result, err := s.uc.Login(ctx, identifier, in.Password)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("Failed to login user: %v", err)
 		return nil, err
 	}
 
@@ -108,29 +103,26 @@ func (s *AuthService) Login(ctx context.Context, in *v1.LoginRequest) (*v1.Login
 // VerifyToken 验证访问令牌
 func (s *AuthService) VerifyToken(ctx context.Context, in *v1.VerifyTokenRequest) (*v1.VerifyTokenResponse, error) {
 	s.log.WithContext(ctx).Debugf("VerifyToken: %v", in)
-	tr, ok := transport.FromServerContext(ctx)
-	if !ok {
-		s.log.WithContext(ctx).Error("Failed to get transport from context")
-		return nil, errors.New("Failed to get transport from context")
+	// 验证请求参数
+	if in.AccessToken == "" {
+		return nil, v1.ErrorTokenInvalid("access_token cannot be empty")
 	}
-	auth := tr.RequestHeader().Get("Authorizatio11111")
-	if auth == "" {
-		s.log.WithContext(ctx).Error("Authorization header is missing")
-		return nil, errors.New("Authorization header is missing")
-	}
-	s.log.WithContext(ctx).Debugf("Authorization: %s", auth)
-	tr.ReplyHeader().Set("X-User-ID", "response001")
-	tr.ReplyHeader().Set("X-Is-VIP", "false")
-	return &v1.VerifyTokenResponse{}, nil
 
 	// 调用业务逻辑层验证令牌
 	result, err := s.uc.VerifyToken(ctx, in.AccessToken)
 	if err != nil {
-		s.log.Errorf("Failed to verify token: %v", err)
+		s.log.WithContext(ctx).Errorf("Failed to verify token: %v", err)
 		// 如果验证失败，返回错误
 		return nil, err
 	}
 
+	// 将用户信息写入http响应头里面
+	tp, ok := transport.FromServerContext(ctx)
+	if !ok {
+		return nil, errors.New("transport not found")
+	}
+	tp.ReplyHeader().Set(string(auth.USER_ID), result.UserID)
+	tp.ReplyHeader().Set(string(auth.USER_NAME), result.Username)
 	// 返回验证成功的结果，将expires_at转换为字符串
 	return &v1.VerifyTokenResponse{
 			Username:  result.Username,
