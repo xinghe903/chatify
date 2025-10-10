@@ -7,6 +7,7 @@ import (
 
 	"auth/internal/biz"
 	"auth/internal/conf"
+	"auth/internal/data/po"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
@@ -119,6 +120,7 @@ func initMySQLClient(c *conf.Data, logg log.Logger) (*gorm.DB, error) {
 	if err := sqlDB.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping mysql: %w", err)
 	}
+	db.AutoMigrate(po.User{}, po.Session{})
 
 	log.NewHelper(logg).Info("MySQL client initialized successfully")
 

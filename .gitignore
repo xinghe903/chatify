@@ -36,4 +36,5 @@ api/*.go
 example
 
 *.bkp
+*.42c
 
