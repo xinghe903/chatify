@@ -46,7 +46,6 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.log.WithContext(ctx).Errorf("WebSocket upgrade error: %v", err)
 		return
 	}
-	defer conn.Close()
 	ctx = auth.NewContext(ctx, r.Header.Get(string(auth.USER_ID)), r.Header.Get(string(auth.USER_NAME)))
 	client := &biz.Client{
 		Conn:   conn,
@@ -87,20 +86,21 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 	s.dispatch(&clientMsg)
 	// }
 }
-func (s *AccessService) dispatch(message *v1.ClientToAccessMessage) {
-	switch message.Type {
-	case v1.ClientToAccessMessage_AUTH:
-		// 处理认证
-	case v1.ClientToAccessMessage_HEARTBEAT:
-		// 处理心跳
-	case v1.ClientToAccessMessage_CHAT:
-		// 处理聊天消息
-	case v1.ClientToAccessMessage_ACK:
-		// 确认收到消息
-	default:
-		// s.log.WithContext(ctx).Warnf("Received unknown message type: %s", message.Type)
-	}
-}
+
+// func (s *AccessService) dispatch(message *v1.ClientToAccessMessage) {
+// 	switch message.Type {
+// 	case v1.ClientToAccessMessage_AUTH:
+// 		// 处理认证
+// 	case v1.ClientToAccessMessage_HEARTBEAT:
+// 		// 处理心跳
+// 	case v1.ClientToAccessMessage_CHAT:
+// 		// 处理聊天消息
+// 	case v1.ClientToAccessMessage_ACK:
+// 		// 确认收到消息
+// 	default:
+// 		// s.log.WithContext(ctx).Warnf("Received unknown message type: %s", message.Type)
+// 	}
+// }
 
 func (s *AccessService) PushMessage(ctx context.Context, req *v1.PushMessageRequest) (*v1.PushMessageResponse, error) {
 	return nil, nil

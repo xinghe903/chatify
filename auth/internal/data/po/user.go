@@ -8,15 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserStatus 用户状态枚举
-type UserStatus string
-
-const (
-	UserStatusActive  UserStatus = "active"  // 活跃
-	UserStatusRevoked UserStatus = "revoked" // 已注销
-	UserStatusLocked  UserStatus = "locked"  // 被锁定（可扩展）
-)
-
 // User 用户表
 type User struct {
 	model.BaseModel
@@ -26,7 +17,7 @@ type User struct {
 	Password string  `gorm:"type:varchar(255);not null" json:"-"` // 不返回给前端
 
 	// 👇 新增状态字段
-	Status UserStatus `gorm:"type:varchar(20);default:'active';not null;index:idx_status" json:"status"`
+	Status string `gorm:"type:varchar(20);default:'active';not null;index:idx_status" json:"status"`
 
 	// 👇 可选：记录注销时间（与 DeletedAt 区分）
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`

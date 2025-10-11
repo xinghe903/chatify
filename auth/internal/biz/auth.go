@@ -92,6 +92,8 @@ func (a *Auth) Register(ctx context.Context, user *bo.User) (string, error) {
 	// 验证用户名是否已存在
 	if _, err := a.repo.GetByUsername(ctx, user.Username); err == nil {
 		return "", v1.ErrorUserNameInvalid("username already exists")
+	} else {
+		a.log.WithContext(ctx).Debugf("Username already exists: %s", user.Username)
 	}
 
 	// 验证邮箱是否已存在
@@ -142,6 +144,7 @@ func (a *Auth) Login(ctx context.Context, identifier, password string) (*bo.Logi
 		} else if user.Status == bo.UserStatusLocked {
 			statusMsg = "user account is locked"
 		}
+		a.log.WithContext(ctx).Debugf("User status is invalid: %s", user.Status)
 		return nil, v1.ErrorUserStatusInvalid(statusMsg)
 	}
 
@@ -376,15 +379,13 @@ func (a *Auth) generateRefreshToken(ctx context.Context, userID string) (string,
 func (a *Auth) VerifyToken(ctx context.Context, accessToken string) (*bo.VerifyTokenResult, error) {
 	// 输入验证
 	if accessToken == "" {
-		a.log.Error("Access token cannot be empty")
 		return nil, errors.New("access token cannot be empty")
 	}
 
 	// 调用数据仓库验证令牌
 	userID, expiresAt, err := a.repo.VerifyAccessToken(ctx, accessToken)
 	if err != nil {
-		a.log.Warnf("Failed to verify access token: %v", err)
-		return nil, errors.New("invalid access token")
+		return nil, errors.Join(errors.New("verify token"), err)
 	}
 
 	// 验证用户是否存在且处于活动状态

@@ -5,9 +5,12 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"pkg/auth"
 	"pkg/model"
+	"strconv"
+	"strings"
 	"time"
 
 	"auth/internal/biz/bo"
@@ -16,7 +19,6 @@ import (
 	"auth/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -58,10 +60,8 @@ func (r *userRepo) Create(ctx context.Context, user *bo.User) error {
 			return v1.ErrorGenerateIdFailed("user ID")
 		}
 	}
-
-	// 密码加密（简单实现，实际项目中应使用bcrypt等强加密算法）
-	passwordHash := r.hashPassword(user.Password)
-
+	user.Status = bo.UserStatusActive
+	r.log.WithContext(ctx).Debugf("user info %+v", user)
 	now := time.Now()
 	// 转换为数据库实体
 	phone := user.Phone
@@ -73,16 +73,16 @@ func (r *userRepo) Create(ctx context.Context, user *bo.User) error {
 		},
 		Username: user.Username,
 		Email:    user.Email,
-		Password: passwordHash,
+		Password: user.Password,
 		Phone:    &phone,
-		Status:   po.UserStatusActive,
+		Status:   string(user.Status),
 	}
 
 	// 保存到数据库
 	if err := r.data.db.WithContext(ctx).Create(userPO).Error; err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
-
+	user.ID = userPO.ID
 	// 更新缓存
 	r.cacheUser(ctx, user)
 
@@ -116,6 +116,7 @@ func (r *userRepo) GetByID(ctx context.Context, id string) (*bo.User, error) {
 		Phone:     "",
 		CreatedAt: userPO.CreatedAt,
 		UpdatedAt: userPO.UpdatedAt,
+		Status:    bo.UserStatus(userPO.Status),
 	}
 
 	if userPO.Phone != nil {
@@ -151,6 +152,7 @@ func (r *userRepo) GetByUsername(ctx context.Context, username string) (*bo.User
 		Username:  userPO.Username,
 		Email:     userPO.Email,
 		Password:  userPO.Password,
+		Status:    bo.UserStatus(userPO.Status),
 		Phone:     "",
 		CreatedAt: userPO.CreatedAt,
 		UpdatedAt: userPO.UpdatedAt,
@@ -193,6 +195,7 @@ func (r *userRepo) GetByEmail(ctx context.Context, email string) (*bo.User, erro
 		Phone:     "",
 		CreatedAt: userPO.CreatedAt,
 		UpdatedAt: userPO.UpdatedAt,
+		Status:    bo.UserStatus(userPO.Status),
 	}
 
 	if userPO.Phone != nil {
@@ -232,6 +235,7 @@ func (r *userRepo) GetByPhone(ctx context.Context, phone string) (*bo.User, erro
 		Phone:     *userPO.Phone,
 		CreatedAt: userPO.CreatedAt,
 		UpdatedAt: userPO.UpdatedAt,
+		Status:    bo.UserStatus(userPO.Status),
 	}
 
 	// 更新缓存
@@ -268,7 +272,7 @@ func (r *userRepo) Update(ctx context.Context, user *bo.User) error {
 		Email:    existingUser.Email,
 		Password: existingUser.Password,
 		Phone:    &phone,
-		Status:   po.UserStatus(existingUser.Status),
+		Status:   string(existingUser.Status),
 	}
 
 	if existingUser.RevokedAt != nil && *existingUser.RevokedAt != (time.Time{}) {
@@ -300,7 +304,7 @@ func (r *userRepo) Delete(ctx context.Context, id string) error {
 	// 更新用户状态为注销并记录注销时间
 	now := time.Now()
 	if err := r.data.db.WithContext(ctx).Model(&po.User{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":     po.UserStatusRevoked,
+		"status":     bo.UserStatusRevoked,
 		"revoked_at": now,
 		"deleted_at": &now,
 	}).Error; err != nil {
@@ -342,19 +346,18 @@ func (r *userRepo) SaveToken(ctx context.Context, tokenInfo *bo.LoginResult) err
 	currentUnix := time.Now().Unix()
 	accessExpiresAt := currentUnix + tokenInfo.AccessExpiresIn
 	refreshExpiresAt := currentUnix + tokenInfo.RefreshExpiresIn
-
 	// 1. 将令牌信息保存到数据库
 	session := &po.Session{
-		BaseModel: model.BaseModel{
-			ID: uuid.New().String(),
-		},
 		UserID:           tokenInfo.UserID,
 		AccessToken:      tokenInfo.AccessToken,
 		RefreshToken:     tokenInfo.RefreshToken,
 		AccessExpiresIn:  accessExpiresAt,
 		RefreshExpiresIn: refreshExpiresAt,
 	}
-
+	var err error
+	if session.ID, err = r.sonyFlake.GenerateBase62(); err != nil {
+		return v1.ErrorGenerateIdFailed("session ID")
+	}
 	if err := r.data.db.WithContext(ctx).Create(session).Error; err != nil {
 		r.log.WithContext(ctx).Errorf("Failed to save token to database: %v", err)
 		return fmt.Errorf("failed to save token to database: %w", err)
@@ -368,7 +371,7 @@ func (r *userRepo) SaveToken(ctx context.Context, tokenInfo *bo.LoginResult) err
 	pipe.Set(ctx, AccessTokenPrefix+tokenInfo.AccessToken, fmt.Sprintf("%s:%d", tokenInfo.UserID, accessExpiresAt), time.Duration(tokenInfo.AccessExpiresIn)*time.Second)
 	// 存储用户的当前refresh token
 	pipe.Set(ctx, UserTokenPrefix+tokenInfo.UserID, tokenInfo.RefreshToken, time.Duration(tokenInfo.RefreshExpiresIn)*time.Second)
-	_, err := pipe.Exec(ctx)
+	_, err = pipe.Exec(ctx)
 	if err != nil {
 		r.log.WithContext(ctx).Errorf("Failed to save token to Redis: %v", err)
 		// 注意：这里没有返回错误，因为数据库操作已成功，Redis失败可以接受
@@ -419,21 +422,30 @@ func (r *userRepo) VerifyAccessToken(ctx context.Context, accessToken string) (s
 	tokenInfo, err := r.data.redis.Get(ctx, AccessTokenPrefix+accessToken).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return "", 0, fmt.Errorf("invalid or expired access token")
+			return "", 0, v1.ErrorTokenInvalid("access token is invalid or expired")
 		}
 		return "", 0, fmt.Errorf("failed to verify access token: %w", err)
 	}
-
+	r.log.WithContext(ctx).Debugf("token key: %s", AccessTokenPrefix+accessToken)
+	r.log.WithContext(ctx).Debugf("token info: %s", tokenInfo)
 	// 解析令牌信息，格式为"userID:expiresAt"
-	var userID string
-	var expiresAt int64
-	fmt.Sscanf(tokenInfo, "%s:%d", &userID, &expiresAt)
+	parts := strings.Split(tokenInfo, ":")
+	if len(parts) != 2 {
+		r.log.WithContext(ctx).Errorf("Failed to parse token info: %s", tokenInfo)
+		return "", 0, v1.ErrorTokenInvalid("access token")
+	}
+	userID := parts[0]
+	expiresAt, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		r.log.WithContext(ctx).Errorf("Failed to parse expires at: %s", parts[1])
+		return "", 0, v1.ErrorTokenInvalid("access token")
+	}
 
 	// 检查令牌是否已过期
 	if time.Now().Unix() > expiresAt {
 		// 删除过期的令牌
 		r.data.redis.Del(ctx, AccessTokenPrefix+accessToken)
-		return "", 0, fmt.Errorf("access token has expired")
+		return "", 0, v1.ErrorTokenInvalid("access token has expired")
 	}
 
 	return userID, expiresAt, nil
@@ -486,12 +498,13 @@ func (r *userRepo) hashPassword(password string) string {
 
 // cacheUser 将用户信息缓存到Redis
 func (r *userRepo) cacheUser(ctx context.Context, user *bo.User) {
-	// 将用户对象转换为JSON（这里简化处理）
-	// 实际项目中应使用正式的JSON序列化
-	userData := fmt.Sprintf("{\"id\":\"%s\",\"username\":\"%s\",\"email\":\"%s\",\"phone\":\"%s\"}",
-		user.ID, user.Username, user.Email, user.Phone)
-
-	r.data.redis.Set(ctx, UserIDPrefix+user.ID, userData, 0) // 永久存储
+	var userJson []byte
+	userJson, err := json.Marshal(user)
+	if err != nil {
+		r.log.WithContext(ctx).Errorf("Failed to marshal user: %v", err)
+		return
+	}
+	r.data.redis.Set(ctx, UserIDPrefix+user.ID, string(userJson), 0) // 永久存储
 }
 
 // getCachedUserByID 从缓存获取用户信息

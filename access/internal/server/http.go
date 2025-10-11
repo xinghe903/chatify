@@ -27,6 +27,6 @@ func NewHTTPServer(cb *conf.Bootstrap, svc *service.AccessService, logger log.Lo
 		opts = append(opts, http.Timeout(c.Http.Timeout.AsDuration()))
 	}
 	srv := http.NewServer(opts...)
-	srv.Handle("/ws", svc)
+	srv.Handle("/chatify/access/v1/ws", svc)
 	return srv
 }

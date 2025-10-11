@@ -48,6 +48,8 @@ api:
 # build
 build:
 	mkdir -p bin/ && GOWORK=off go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/ ./...
+# 	$env:GOWORK="off"; go build -ldflags "-X main.Version=f5d3b61" -o ./bin/ ./...
+# GOOS=windows GOARCH=arm64 GOWORK=off go build  -o auth.exe ./cmd/auth
 
 .PHONY: generate
 # generate

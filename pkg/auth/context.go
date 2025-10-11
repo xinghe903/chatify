@@ -6,8 +6,11 @@ import "context"
 type contextKey string
 
 const (
-	USER_ID   = contextKey("x-user-id")
-	USER_NAME = contextKey("x-user-name")
+	USER_ID       = contextKey("x-user-id")
+	USER_NAME     = contextKey("x-user-name")
+	AUTH_ERROR    = contextKey("x-auth-error")
+	ACCESS_TOKEN  = contextKey("access-token")
+	REFRESH_TOKEN = contextKey("refresh-token")
 )
 
 func GetUserID(ctx context.Context) string {

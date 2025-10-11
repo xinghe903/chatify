@@ -1,9 +1,9 @@
 package server
 
 import (
-	v1 "access/api/access/v1"
 	"access/internal/conf"
 	"access/internal/service"
+	v1 "api/access/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"pkg/auth"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"auth/internal/biz"
 	"auth/internal/biz/bo"
 
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 )
@@ -102,10 +104,21 @@ func (s *AuthService) Login(ctx context.Context, in *v1.LoginRequest) (*v1.Login
 
 // VerifyToken 验证访问令牌
 func (s *AuthService) VerifyToken(ctx context.Context, in *v1.VerifyTokenRequest) (*v1.VerifyTokenResponse, error) {
+	// 将用户信息写入http响应头里面
+	tp, ok := transport.FromServerContext(ctx)
+	if !ok {
+		s.log.WithContext(ctx).Errorf("Failed to get transport context failed")
+		return nil, v1.ErrorTokenInvalid("transport not found")
+	}
+	in.AccessToken = tp.RequestHeader().Get(string(auth.ACCESS_TOKEN))
 	s.log.WithContext(ctx).Debugf("VerifyToken: %v", in)
-	// 验证请求参数
-	if in.AccessToken == "" {
-		return nil, v1.ErrorTokenInvalid("access_token cannot be empty")
+	setHeader := func(err *kerrors.Error) error {
+		errJson, _ := json.Marshal(err)
+		tp.ReplyHeader().Set(string(auth.AUTH_ERROR), string(errJson))
+		return err
+	}
+	if len(in.AccessToken) == 0 {
+		return nil, setHeader(v1.ErrorTokenInvalid("%s is required", string(auth.ACCESS_TOKEN)))
 	}
 
 	// 调用业务逻辑层验证令牌
@@ -113,14 +126,9 @@ func (s *AuthService) VerifyToken(ctx context.Context, in *v1.VerifyTokenRequest
 	if err != nil {
 		s.log.WithContext(ctx).Errorf("Failed to verify token: %v", err)
 		// 如果验证失败，返回错误
-		return nil, err
+		return nil, setHeader(v1.ErrorTokenInvalid(err.Error()))
 	}
 
-	// 将用户信息写入http响应头里面
-	tp, ok := transport.FromServerContext(ctx)
-	if !ok {
-		return nil, errors.New("transport not found")
-	}
 	tp.ReplyHeader().Set(string(auth.USER_ID), result.UserID)
 	tp.ReplyHeader().Set(string(auth.USER_NAME), result.Username)
 	// 返回验证成功的结果，将expires_at转换为字符串
