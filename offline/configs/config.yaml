@@ -13,3 +13,8 @@ data:
     addr: 127.0.0.1:6379
     read_timeout: 0.2s
     write_timeout: 0.2s
+  etcd:
+    endpoints: ["127.0.0.1:12379"]
+    dial_timeout: 1s
+    username: ""
+    password: ""

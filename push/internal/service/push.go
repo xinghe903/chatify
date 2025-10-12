@@ -20,6 +20,6 @@ func NewPushService(uc *biz.Push) *PushService {
 }
 
 // SayHello implements helloworld.GreeterServer.
-func (s *PushService) PushServiceClient(ctx context.Context, in *v1.PushMessageRequest) (*v1.PushMessageResponse, error) {
+func (s *PushService) PushServiceClient(ctx context.Context, in *v1.PushRequest) (*v1.PushResponse, error) {
 	return nil, nil
 }

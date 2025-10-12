@@ -52,39 +52,9 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Send:   make(chan []byte, 256),
 		UserID: auth.GetUserID(ctx),
 	}
-	s.wsManager.RegisterClient(ctx, client)
 	s.log.WithContext(ctx).Debugf("Client connected: %s", conn.RemoteAddr())
-	// client.Conn.SetReadLimit(512 << 10) // 512KB
-	// client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	// client.Conn.SetPongHandler(func(string) error {
-	// 	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	// 	return nil
-	// })
-
-	// for {
-	// 	messageType, message, err := client.Conn.ReadMessage()
-	// 	if err != nil {
-	// 		s.wsManager.UnregisterClient(client)
-	// 		client.Conn.Close()
-	// 		break
-	// 	}
-	// 	if messageType != websocket.TextMessage {
-	// 		s.log.WithContext(ctx).Errorf("Invalid message type: %d", messageType)
-	// 		continue
-	// 	}
-	// 	var clientMsg v1.ClientToAccessMessage
-	// 	if err := proto.Unmarshal(message, &clientMsg); err != nil {
-	// 		s.log.WithContext(ctx).Errorf("proto unmarshal error: %v", err)
-	// 		s.sendMessage(client, &v1.AccessToClientMessage{
-	// 			Type:   v1.AccessToClientMessage_ACK,
-	// 			Status: v1.AccessToClientMessage_FAILURE,
-	// 		})
-	// 		continue
-	// 	}
-
-	// 	s.log.WithContext(ctx).Debugf("Received: %s", message)
-	// 	s.dispatch(&clientMsg)
-	// }
+	s.log.WithContext(ctx).Debugf("Client userId: %s, username: %s", client.UserID, auth.GetUserName(ctx))
+	s.wsManager.StartClient(ctx, client)
 }
 
 // func (s *AccessService) dispatch(message *v1.ClientToAccessMessage) {

@@ -32,7 +32,13 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	accessService := service.NewAccessService(logger, consumer)
 	grpcServer := server.NewGRPCServer(bootstrap, accessService, logger)
 	httpServer := server.NewHTTPServer(bootstrap, accessService, logger)
-	app := newApp(logger, grpcServer, httpServer)
+	client, err := data.NewEtcdClient(bootstrap)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	registrar := data.NewRegistry(client)
+	app := newApp(logger, grpcServer, httpServer, registrar)
 	return app, func() {
 		cleanup()
 	}, nil

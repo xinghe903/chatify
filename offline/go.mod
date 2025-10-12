@@ -5,8 +5,10 @@ go 1.23.0
 toolchain go1.23.1
 
 require (
+	github.com/go-kratos/kratos/contrib/registry/etcd/v2 v2.0.0-20250912104010-25b6c0fb9f38
 	github.com/go-kratos/kratos/v2 v2.8.4
 	github.com/google/wire v0.6.0
+	go.etcd.io/etcd/client/v3 v3.6.5
 	go.uber.org/automaxprocs v1.5.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822
 	google.golang.org/grpc v1.73.0

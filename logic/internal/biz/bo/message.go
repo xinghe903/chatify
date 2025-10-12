@@ -19,31 +19,29 @@ type Message struct {
 	Target      []*TargetUser
 }
 
-func NewMessage(req *v1.SendMessageRequest) *Message {
-	if req == nil {
-		return nil
-	}
-	var targets []*TargetUser
-	for _, userId := range req.GetTargetUserIds() {
-		targets = append(targets, &TargetUser{
-			UserId:     userId,
-			GroupId:    "",
-			FromUserId: "xinghe",
-		})
-	}
-	if req.GroupId != "" {
-		targets = append(targets, &TargetUser{
-			UserId:     "",
-			GroupId:    req.GroupId,
-			FromUserId: "xinghe",
-		})
-	}
-	return &Message{
-		Target:      targets,
-		Content:     req.Content,
-		ContentType: req.ContentType,
-		ExpireTime:  req.ExpireTime,
-	}
+func NewMessage(req *v1.SystemPushRequest) *Message {
+	return nil
+	// var targets []*TargetUser
+	// for _, userId := range req.GetTargetUserIds() {
+	// 	targets = append(targets, &TargetUser{
+	// 		UserId:     userId,
+	// 		GroupId:    "",
+	// 		FromUserId: "xinghe",
+	// 	})
+	// }
+	// if req.GroupId != "" {
+	// 	targets = append(targets, &TargetUser{
+	// 		UserId:     "",
+	// 		GroupId:    req.GroupId,
+	// 		FromUserId: "xinghe",
+	// 	})
+	// }
+	// return &Message{
+	// 	Target:      targets,
+	// 	Content:     req.Content,
+	// 	ContentType: req.ContentType,
+	// 	ExpireTime:  req.ExpireTime,
+	// }
 }
 
 func (m Message) MarshalJSON() ([]byte, error) {

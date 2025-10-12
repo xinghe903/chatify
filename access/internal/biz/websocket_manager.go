@@ -35,18 +35,18 @@ func NewManager(logger log.Logger) *Manager {
 	}
 }
 
-func (m *Manager) RegisterClient(ctx context.Context, client *Client) {
+func (m *Manager) StartClient(ctx context.Context, client *Client) {
 	var rctx, wctx context.Context
 	rctx, client.readCtxCancel = context.WithCancelCause(ctx)
 	wctx, client.writeCtxCancel = context.WithCancelCause(ctx)
-	go m.readPump(rctx, client)
 	go m.writePump(wctx, client)
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.clients[client.UserID] = client
+	m.mu.Unlock()
+	m.readPump(rctx, client)
 }
 
-func (m *Manager) UnregisterClient(client *Client) {
+func (m *Manager) StopClient(client *Client) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.clients[client.UserID]; !ok {
@@ -80,7 +80,7 @@ func (m *Manager) Count() int {
 
 func (m *Manager) readPump(ctx context.Context, client *Client) {
 	defer func() {
-		m.UnregisterClient(client)
+		m.StopClient(client)
 		client.readCtxCancel(errors.New("read unregister cause"))
 	}()
 	// 无法写入消息，则认为改连接已经断开
@@ -112,7 +112,7 @@ func (m *Manager) writePump(ctx context.Context, client *Client) {
 	ticker := time.NewTicker(54 * time.Second)
 	defer func() {
 		ticker.Stop()
-		m.UnregisterClient(client)
+		m.StopClient(client)
 		client.writeCtxCancel(errors.New("write unregister cause"))
 	}()
 

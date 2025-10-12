@@ -34,7 +34,14 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	logic := biz.NewLogic(logger, userRepo, cacheRepo, pushRepo, bootstrap)
 	logicService := service.NewLogicService(logic)
 	grpcServer := server.NewGRPCServer(bootstrap, logicService, logger)
-	app := newApp(logger, grpcServer)
+	client, err := data.NewEtcdClient(bootstrap)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	registrar := data.NewRegistry(client)
+	app := newApp(logger, grpcServer, registrar)
 	return app, func() {
 		cleanup2()
 		cleanup()

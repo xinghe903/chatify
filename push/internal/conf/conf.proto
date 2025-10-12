@@ -36,6 +36,13 @@ message Data {
     google.protobuf.Duration read_timeout = 3;
     google.protobuf.Duration write_timeout = 4;
   }
+  message Etcd {
+    repeated string endpoints = 1;
+    google.protobuf.Duration dial_timeout = 2;
+    string username = 3;
+    string password = 4;
+  }
   Database database = 1;
   Redis redis = 2;
+  Etcd etcd = 3;
 }
