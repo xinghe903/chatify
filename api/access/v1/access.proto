@@ -17,26 +17,30 @@ service AccessService {
 }
 
 // 连接-消息映射
-message ConnectionMessage {
-  string connection_id = 1; // 目标连接 ID（Access 内部唯一）
-  repeated im.v1.BaseMessage message = 2; // 对应连接的消息体  max size: 1000
-}
+// message ConnectionMessage {
+//   string connection_id = 1; // 服务ID（Access 内部唯一）
+//   repeated im.v1.BaseMessage message = 2; // 对应连接的消息体  max size: 1000
+// }
 
 // Push 服务请求下发消息
 message PushMessageRequest {
-  repeated ConnectionMessage connection_messages = 1; // 连接-消息映射列表
+  string connection_id = 1; // 服务ID（Access 内部唯一）
+  repeated im.v1.BaseMessage message = 2; // 对应连接的消息体  max size: 1000
 }
 
 // 下发结果
 message PushMessageResponse {
   enum Code {
-    OK = 0;
-    NOT_FOUND = 1;        // 连接不存在
-    UNAVAILABLE = 2;      // 节点不可用（如正在关闭）
-    FAILED_PRECONDITION = 3; // 前置条件失败（如用户已下线）
-    INTERNAL = 4;         // 内部错误
+    UNSUPPORT = 0;  // 不支持
+    CONN_NOT_FOUND = 1;        // 连接不存在
+    ALL_SUCCESS = 2;      // 所有消息发送成功
+    ALL_FAILED = 3;        // 所有消息发送失败
+    PARTIAL_SUCCESS = 4;       // 部分消息发送成功
+    INTERNAL = 5;         // 内部错误
   }
 
   Code code = 1;
   string message = 2;     // 错误描述
+  repeated string failed_message_ids = 3;
+  repeated string success_message_ids = 4;
 }

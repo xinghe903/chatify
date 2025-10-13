@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	v1 "api/push/v1"
 	"push/internal/biz"
-	
+
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -51,7 +50,7 @@ func (s *PushService) PushToUser(ctx context.Context, in *v1.PushRequest) (*v1.P
 		Code:    v1.PushResponse_OK,
 		Message: "Push to user success",
 	}
-	
+
 	s.log.Info("PushToUser request processed successfully", "task_id", in.TaskId, "message_count", len(in.Message))
 	return response, nil
 }
@@ -59,25 +58,25 @@ func (s *PushService) PushToUser(ctx context.Context, in *v1.PushRequest) (*v1.P
 // BatchQueryOnline 实现批量查询用户在线状态的RPC方法
 func (s *PushService) BatchQueryOnline(ctx context.Context, in *v1.BatchQueryRequest) (*v1.BatchQueryResponse, error) {
 	s.log.Debug("BatchQueryOnline request received", "user_count", len(in.UserIds))
-	
+
 	// 实现批量查询用户在线状态的逻辑
 	// 这里为了示例，返回模拟数据
 	statuses := make([]*v1.BatchQueryResponse_UserStatus, 0, len(in.UserIds))
-	
+
 	for _, userId := range in.UserIds {
 		// 实际项目中应该从Redis或其他存储中查询用户是否在线
 		status := &v1.BatchQueryResponse_UserStatus{
 			UserId: userId,
-			Online: true, // 模拟用户在线
+			Online: true,    // 模拟用户在线
 			Node:   "node1", // 模拟节点信息
 		}
 		statuses = append(statuses, status)
 	}
-	
+
 	response := &v1.BatchQueryResponse{
 		Statuses: statuses,
 	}
-	
+
 	s.log.Info("BatchQueryOnline request processed successfully", "user_count", len(in.UserIds))
 	return response, nil
 }

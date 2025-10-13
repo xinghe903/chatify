@@ -35,7 +35,7 @@ func init() {
 
 func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server) *kratos.App {
 	return kratos.New(
-		kratos.ID(id),
+		// kratos.ID(id), // 服务ID 暂时用系统生成的，生产环境可以用kratos默认的hostname
 		kratos.Name(Name),
 		kratos.Version(Version),
 		kratos.Metadata(map[string]string{}),

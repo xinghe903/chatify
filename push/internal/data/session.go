@@ -1,10 +1,10 @@
 package data
 
 import (
-	"access/internal/biz"
-	"access/internal/biz/bo"
 	"context"
 	"encoding/json"
+	"push/internal/biz"
+	"push/internal/biz/bo"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

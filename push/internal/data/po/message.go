@@ -1,7 +1,10 @@
 package po
 
 import (
+	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // 消息状态枚举
@@ -41,4 +44,11 @@ type Message struct {
 // TableName 设置表名
 func (Message) TableName() string {
 	return "chatify_push_message"
+}
+
+func (s *Message) BeforeCreate(tx *gorm.DB) error {
+	if !strings.HasPrefix(s.ID, "mid") {
+		s.ID = "mid" + s.ID
+	}
+	return nil
 }

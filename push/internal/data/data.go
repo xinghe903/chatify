@@ -2,197 +2,173 @@ package data
 
 import (
 	"context"
-	"sync"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"fmt"
 	"push/internal/conf"
 	"push/internal/data/po"
 	"time"
-	accessV1 "api/access/v1"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/recovery"
-	"github.com/go-kratos/kratos/v2/registry"
-	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewUserRepo, NewMessageRepo, NewEtcdClient, NewRegistry,
-	func(d *Data) *redis.Client { return d.redisClient },
-	NewAccessServiceClient, NewAccessServiceClientManager)
+var ProviderSet = wire.NewSet(NewData, NewSessionRepo, NewAccessNodeManager, NewEtcdClient, NewRegistry)
 
-// Data .
+// gormLogAdapter 是一个适配器，将Kratos的logger转换为GORM可用的logger
+// 实现了gorm.io/gorm/logger.Writer接口
+type gormLogAdapter struct {
+	logger log.Logger
+}
+
+// Printf 实现gorm.io/gorm/logger.Writer接口的Printf方法
+func (l *gormLogAdapter) Printf(format string, args ...interface{}) {
+	l.logger.Log(log.LevelDebug, fmt.Sprintf(format, args...))
+}
+
+// Data 数据层主结构
 type Data struct {
-	// 数据库连接
-	db *gorm.DB
-	// Redis客户端
+	db          *gorm.DB
 	redisClient *redis.Client
 }
 
-// NewData .
+// NewData 创建数据层实例
 func NewData(cb *conf.Bootstrap, logger log.Logger) (*Data, func(), error) {
-	logHelper := log.NewHelper(logger)
-	
-	// 初始化数据库连接
-	var db *gorm.DB
-	var err error
-	if cb.Data.Database.Driver == "mysql" {
-		// 配置gorm日志
-		gormLogger := logger.New(
-			logHelper,
-			logger.Config{
-				SlowThreshold: time.Second,
-				LogLevel:      logger.Info,
-				Colorful:      true,
-			},
-		)
-		
-		// 连接数据库
-		db, err = gorm.Open(mysql.Open(cb.Data.Database.Source), &gorm.Config{
-			Logger: gormLogger,
-		})
-		if err != nil {
-			logHelper.Error("failed to connect database", err.Error())
-			return nil, nil, err
-		}
-		
-		// 自动迁移表结构
-		if err = db.AutoMigrate(&po.Message{}); err != nil {
-			logHelper.Error("failed to migrate database", err.Error())
-			return nil, nil, err
-		}
-	}
-	
-	// 初始化Redis客户端
-	redisClient := redis.NewClient(&redis.Options{
-		Network:  cb.Data.Redis.Network,
-		Addr:     cb.Data.Redis.Addr,
-		ReadTimeout:  cb.Data.Redis.ReadTimeout.AsDuration(),
-		WriteTimeout: cb.Data.Redis.WriteTimeout.AsDuration(),
-	})
-	
-	// 测试Redis连接
-	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
-		logHelper.Error("failed to connect redis", err.Error())
+	// 初始化MySQL客户端
+	db, err := initMySQLClient(cb.Data, logger)
+	if err != nil {
 		return nil, nil, err
 	}
-	
-	d := &Data{
-		db:          db,
-		redisClient: redisClient,
+
+	// 初始化Redis客户端
+	redisClient, err := initRedisClient(cb.Data, logger)
+	if err != nil {
+		return nil, nil, err
 	}
-	
+
 	cleanup := func() {
-		logHelper.Info("closing the data resources")
-		// 关闭数据库连接
-		if sqlDB, err := d.db.DB(); err == nil {
-			sqlDB.Close()
+		if redisClient != nil {
+			if err := redisClient.Close(); err != nil {
+				log.NewHelper(logger).Errorf("Failed to close redis client: %v", err)
+			}
 		}
-		// 关闭Redis连接
-		if err := d.redisClient.Close(); err != nil {
-			logHelper.Error("failed to close redis", err.Error())
+		log.NewHelper(logger).Info("closing the data resources")
+	}
+
+	return &Data{
+			db:          db,
+			redisClient: redisClient,
+		},
+		cleanup,
+		nil
+}
+
+// initMySQLClient 初始化MySQL客户端
+func initMySQLClient(c *conf.Data, logg log.Logger) (*gorm.DB, error) {
+	// 使用配置文件中的数据库连接字符串
+	dsn := ""
+	mysqlConfig := c.Database
+	if mysqlConfig != nil && mysqlConfig.Source != "" {
+		dsn = mysqlConfig.Source
+	} else {
+		// 默认配置（作为备选）
+		dsn = "root:password@tcp(localhost:3306)/auth?charset=utf8mb4&parseTime=True&loc=Local"
+	}
+
+	// 使用默认的GORM日志级别（Info级别）
+
+	// 创建GORM日志适配器
+	logAdapter := &gormLogAdapter{logger: logg}
+
+	// 创建GORM配置
+	dbLogger := logger.New(
+		logAdapter,
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  true,
+		},
+	)
+
+	// 连接MySQL
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: dbLogger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to mysql: %w", err)
+	}
+
+	// 获取原始连接池
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get db instance: %w", err)
+	}
+
+	// 配置连接池（使用默认值）
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns(20)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(time.Minute * 30)
+
+	// 测试连接
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping mysql: %w", err)
+	}
+	db.AutoMigrate(po.Message{})
+
+	log.NewHelper(logg).Info("MySQL client initialized successfully")
+
+	return db, nil
+}
+
+// initRedisClient 初始化Redis客户端
+func initRedisClient(c *conf.Data, logg log.Logger) (*redis.Client, error) {
+	// 默认配置
+	network := "tcp"
+	addr := "localhost:6379"
+	readTimeout := 3 * time.Second
+	writeTimeout := 3 * time.Second
+
+	// 从配置中读取Redis参数
+	redisConfig := c.Redis
+	if redisConfig != nil {
+		if redisConfig.Network != "" {
+			network = redisConfig.Network
+		}
+		if redisConfig.Addr != "" {
+			addr = redisConfig.Addr
+		}
+		if redisConfig.ReadTimeout != nil {
+			readTimeout = redisConfig.ReadTimeout.AsDuration()
+		}
+		if redisConfig.WriteTimeout != nil {
+			writeTimeout = redisConfig.WriteTimeout.AsDuration()
 		}
 	}
-	return d, cleanup, nil
-}
 
-// AccessServiceClientManager 管理多个access服务客户端
-type AccessServiceClientManager struct {
-	clients     map[string]accessV1.AccessServiceClient
-	discovery   registry.Discovery
-	mutex       sync.RWMutex
-	defaultConn accessV1.AccessServiceClient
-}
+	client := redis.NewClient(&redis.Options{
+		Network:      network,
+		Addr:         addr,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		Password:     "", // 默认无密码，实际环境中应从配置读取
+		DB:           0,
+	})
 
-// NewAccessServiceClientManager 创建access服务客户端管理器
-func NewAccessServiceClientManager(r registry.Discovery) *AccessServiceClientManager {
-	manager := &AccessServiceClientManager{
-		clients:   make(map[string]accessV1.AccessServiceClient),
-		discovery: r,
-	}
-	
-	// 创建默认客户端（用于无特定服务实例ID的情况）
-	conn, err := grpc.DialInsecure(
-		context.Background(),
-		grpc.WithEndpoint("discovery:///access.service"),
-		grpc.WithDiscovery(r),
-		grpc.WithMiddleware(
-			recovery.Recovery(),
-		),
-	)
-	if err != nil {
-		panic(err)
-	}
-	manager.defaultConn = accessV1.NewAccessServiceClient(conn)
-	
-	return manager
-}
+	// 测试连接
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-// GetClient 获取指定access服务实例的客户端
-func (m *AccessServiceClientManager) GetClient(accessServiceId string) accessV1.AccessServiceClient {
-	// 如果accessServiceId为空，返回默认客户端
-	if accessServiceId == "" || accessServiceId == "default" {
-		return m.defaultConn
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to connect to redis: %w", err)
 	}
-	
-	// 尝试从缓存中获取客户端
-	m.mutex.RLock()
-	client, exists := m.clients[accessServiceId]
-	m.mutex.RUnlock()
-	
-	if exists {
-		return client
-	}
-	
-	// 如果缓存中没有，创建新的客户端
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	
-	// 二次检查，防止并发创建
-	if client, exists := m.clients[accessServiceId]; exists {
-		return client
-	}
-	
-	// 构建特定服务实例的endpoint
-	// 注意：这里假设access服务实例注册时使用了特定的ID作为元数据
-	// 实际实现可能需要根据服务发现机制调整
-	endpoint := fmt.Sprintf("discovery:///access.service?filter=id%%3D%s", accessServiceId)
-	
-	conn, err := grpc.DialInsecure(
-		context.Background(),
-		grpc.WithEndpoint(endpoint),
-		grpc.WithDiscovery(m.discovery),
-		grpc.WithMiddleware(
-			recovery.Recovery(),
-		),
-	)
-	if err != nil {
-		// 如果创建特定实例的客户端失败，返回默认客户端
-		return m.defaultConn
-	}
-	
-	client = accessV1.NewAccessServiceClient(conn)
-	m.clients[accessServiceId] = client
-	
-	return client
-}
 
-// NewAccessServiceClient 创建access服务的grpc客户端（兼容旧接口）
-func NewAccessServiceClient(r registry.Discovery) accessV1.AccessServiceClient {
-	// 创建grpc客户端，使用服务发现
-	conn, err := grpc.DialInsecure(
-		context.Background(),
-		grpc.WithEndpoint("discovery:///access.service"),
-		grpc.WithDiscovery(r),
-		grpc.WithMiddleware(
-			recovery.Recovery(),
-		),
-	)
-	if err != nil {
-		panic(err)
-	}
-	return accessV1.NewAccessServiceClient(conn)
+	log.NewHelper(logg).Info("Redis client initialized successfully")
+
+	return client, nil
 }

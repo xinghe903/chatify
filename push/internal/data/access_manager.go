@@ -1,10 +1,12 @@
-package service
+package data
 
 import (
 	v1 "api/access/v1"
+	im_v1 "api/im/v1"
 	"context"
 	"errors"
 	"fmt"
+	"push/internal/biz"
 	"strings"
 	"sync"
 	"time"
@@ -14,69 +16,57 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
-	"github.com/redis/go-redis/v9"
 	ggrpc "google.golang.org/grpc"
 )
 
-// PushRequest 是你定义在 .proto 中的消息结构（示例）
-type PushRequest struct {
-	UserId string `json:"user_id"`
-	Data   []byte `json:"data"`
-}
+var _ biz.AccessNodeManager = (*accessNodeManager)(nil)
 
-type PushResponse struct {
-	Code int32  `json:"code"`
-	Msg  string `json:"msg"`
-}
-
-// AccessNodeManager 管理 access 服务节点，支持通过用户ID路由并发送gRPC消息
-type AccessNodeManager struct {
+// accessNodeManager 管理 access 服务节点，支持通过用户ID路由并发送gRPC消息
+type accessNodeManager struct {
 	discovery registry.Discovery
-	redis     *redis.Client
+	data      *Data
 	log       *log.Helper
-
-	// sid -> host:port 缓存
-	// nodes    map[string]string
-	nodesMux sync.RWMutex
-
 	// access gRPC 连接池：sid -> conn
 	accesss  map[string]v1.AccessServiceClient
 	connsMux sync.Mutex
 	conns    map[string]*ggrpc.ClientConn
-	ctx      context.Context
-	cancel   context.CancelCauseFunc
+	// ctx      context.Context
+	cancel context.CancelCauseFunc
 
 	// 配置
-	servicePrefix string
-	redisKeyFmt   string
+	// servicePrefix string
+	// redisKeyFmt   string
 }
 
 // NewAccessNodeManager 创建新的管理器
 func NewAccessNodeManager(
 	discovery registry.Discovery,
-	redis *redis.Client,
+	data *Data,
 	logger log.Logger,
-) (*AccessNodeManager, error) {
+) (*accessNodeManager, func(), error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 
-	manager := &AccessNodeManager{
-		discovery:     discovery,
-		redis:         redis,
-		log:           log.NewHelper(log.With(logger, "module", "access_node_manager")),
-		accesss:       make(map[string]v1.AccessServiceClient),
-		ctx:           ctx,
-		cancel:        cancel,
-		servicePrefix: "access", // Kratos 默认服务名，实际注册为 /ms/instance/{sid}
-		redisKeyFmt:   "chatify:session:%s",
+	manager := &accessNodeManager{
+		discovery: discovery,
+		data:      data,
+		log:       log.NewHelper(log.With(logger, "module", "access_node_manager")),
+		accesss:   make(map[string]v1.AccessServiceClient),
+		// ctx:           ctx,
+		cancel: cancel,
+		// servicePrefix: "access", // Kratos 默认服务名，实际注册为 /ms/instance/{sid}
+		// redisKeyFmt:   "chatify:session:%s",
 	}
-
-	// 启动服务发现监听
-	if err := manager.watchAccessNodes(); err != nil {
+	cleanup := func() {
 		cancel(errors.New("access node manager closed"))
-		return nil, fmt.Errorf("failed to watch access nodes: %w", err)
+		manager.Close()
+	}
+	// 启动服务发现监听
+	if err := manager.watchAccessNodes(ctx); err != nil {
+		manager.log.Errorf("Failed to watch access nodes: %v", err)
+		return nil, cleanup, fmt.Errorf("failed to watch access nodes: %w", err)
 	}
 
-	return manager, nil
+	return manager, cleanup, nil
 }
 
 // watchAccessNodes 监听 access 服务实例的变化
@@ -87,15 +77,16 @@ func NewAccessNodeManager(
 //	Key: /ms/access/{instance_id} → Value: {"addrs":["grpc://host:port"]}
 //
 // 因此我们监听服务名 "access"
-func (m *AccessNodeManager) watchAccessNodes() error {
-	watcher, err := m.discovery.Watch(m.ctx, "access") // 服务名是 "access"
+func (m *accessNodeManager) watchAccessNodes(ctx context.Context) error {
+	watcher, err := m.discovery.Watch(ctx, "access") // 服务名是 "access"
 	if err != nil {
 		return err
 	}
 
 	// 先获取一次全量实例
-	if err = m.updateNodesFromInstances(watcher); err != nil {
-		m.log.Warnf("Failed to init access nodes: %v", err)
+	if err = m.updateNodesFromInstances(ctx, watcher); err != nil {
+		m.log.WithContext(ctx).Warnf("Failed to init access nodes: %v", err)
+		return fmt.Errorf("failed to init access nodes: %w", err)
 	}
 
 	// 异步监听变化
@@ -105,17 +96,19 @@ func (m *AccessNodeManager) watchAccessNodes() error {
 
 		for {
 			select {
-			case <-m.ctx.Done():
+			case <-ctx.Done():
+				m.log.WithContext(ctx).Infof("Access node manager closed")
 				return
 			case <-ticker.C:
 				// 定期刷新防止事件丢失
-				_ = m.updateNodesFromInstances(watcher)
-			default:
-				// 尝试更新
-				if err := m.updateNodesFromInstances(watcher); err != nil {
-					m.log.Errorf("Error watching access instances: %v", err)
+				if err := m.updateNodesFromInstances(ctx, watcher); err != nil {
+					m.log.WithContext(ctx).Errorf("Error watching access instances: %v", err)
+				} else {
+					m.connsMux.Lock()
+					nodeLen := len(m.accesss)
+					m.connsMux.Unlock()
+					m.log.WithContext(ctx).Debugf("Updated access nodes count: %d", nodeLen)
 				}
-				time.Sleep(1 * time.Second)
 			}
 		}
 	}()
@@ -124,13 +117,12 @@ func (m *AccessNodeManager) watchAccessNodes() error {
 }
 
 // updateNodesFromInstances 从 watcher 获取实例并更新本地缓存
-func (m *AccessNodeManager) updateNodesFromInstances(watcher registry.Watcher) error {
+func (m *accessNodeManager) updateNodesFromInstances(ctx context.Context, watcher registry.Watcher) error {
 	res, err := watcher.Next()
 	if err != nil {
-		return err
+		return errors.Join(errors.New("watch access instances"), err)
 	}
-
-	updatedNodes := make(map[string]string)
+	var count int
 	for _, ins := range res {
 		// instance ID 即为 sid
 		sid := ins.ID
@@ -159,55 +151,60 @@ func (m *AccessNodeManager) updateNodesFromInstances(watcher registry.Watcher) e
 				),
 			)
 			if err != nil {
-				m.log.Errorf("Failed to dial %s: %v", addr, err)
+				m.log.WithContext(ctx).Errorf("Failed to dial %s: %v", addr, err)
 				continue
 			}
+			count++
+			m.connsMux.Lock()
 			m.accesss[sid] = v1.NewAccessServiceClient(conn)
 			m.conns[sid] = conn
+			m.connsMux.Unlock()
 		}
 	}
-
-	m.log.Infof("Updated access nodes count: %d", len(updatedNodes))
+	m.log.WithContext(ctx).Debugf("Updated access nodes count: %d", count)
 	return nil
 }
 
 // SendToUser 根据 userId 发送消息到其所在的 access 节点
-func (m *AccessNodeManager) SendToUser(ctx context.Context, sid string, message *v1.ConnectionMessage) (*PushResponse, error) {
-	// Step 1: 从 Redis 获取该用户当前连接的 access 实例 ID (sid)
-	redisKey := fmt.Sprintf(m.redisKeyFmt, userID)
-	sid, err := m.redis.Get(ctx, redisKey).Result()
-	if err == redis.Nil {
-		return nil, fmt.Errorf("user %s is not connected", userID)
-	} else if err != nil {
-		return nil, fmt.Errorf("redis error: %w", err)
+// returns: 1. 成功发送的消息 ID  2. 错误
+func (m *accessNodeManager) SendToUser(ctx context.Context, connectId string, messages []*im_v1.BaseMessage) ([]string, error) {
+	var successMsgIDs []string
+	var ok bool
+	var client v1.AccessServiceClient
+	m.connsMux.Lock()
+	defer m.connsMux.Unlock()
+	if client, ok = m.accesss[connectId]; !ok {
+		return nil, errors.New("access node not found")
 	}
-
-	// Step 2: 获取该 sid 的 gRPC 客户端
-	conn, err := m.getGRPCClient(sid)
+	rsp, err := client.PushMessage(ctx, &v1.PushMessageRequest{
+		ConnectionId: connectId,
+		Message:      messages,
+	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(errors.New("failed to send message to access node"), err)
 	}
-
-	// Step 3: 构造请求并发送（这里假设你生成了 pb.PushClient）
-	client := NewPushClient(conn) // 替换为你实际生成的 client
-	req := &PushRequest{
-		UserId: userID,
-		Data:   data,
+	if rsp.Code == v1.PushMessageResponse_ALL_SUCCESS {
+		successMsgIDs = append(successMsgIDs, rsp.SuccessMessageIds...)
+		return successMsgIDs, nil
 	}
-
-	return client.Push(ctx, req)
+	if rsp.Code == v1.PushMessageResponse_PARTIAL_SUCCESS {
+		successMsgIDs = append(successMsgIDs, rsp.SuccessMessageIds...)
+		return successMsgIDs, biz.ErrPartialSuccess
+	}
+	if rsp.Code == v1.PushMessageResponse_ALL_FAILED {
+		return nil, biz.ErrAllFailed
+	}
+	return nil, fmt.Errorf("unknown push message response code: %s", rsp.Code.String())
 }
 
 // Close 关闭所有连接
-func (m *AccessNodeManager) Close() error {
-	m.cancel(errors.New("access node manager closed"))
-
+func (m *accessNodeManager) Close() error {
 	m.connsMux.Lock()
 	for _, conn := range m.conns {
 		conn.Close()
 	}
 	m.conns = make(map[string]*ggrpc.ClientConn)
+	m.accesss = make(map[string]v1.AccessServiceClient)
 	m.connsMux.Unlock()
-
 	return nil
 }
