@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "api/auth/v1;v1";
+
+
+// 认证服务
+service AuthService {
+  // 1. 注册用户
+  rpc Register(RegisterRequest) returns (RegisterResponse){
+    option (google.api.http) = {
+      post: "/chatify/auth/v1/register",
+      body: "*",
+    };
+  };
+
+  // 2. 登录用户
+  rpc Login(LoginRequest) returns (LoginResponse){
+    option (google.api.http) = {
+      post: "/chatify/auth/v1/login",
+      body: "*",
+    };
+  };
+
+  // 3. 注销用户（永久删除账户，作废所有 token）
+  rpc RevokeUser(RevokeUserRequest) returns (RevokeUserResponse){
+    option (google.api.http) = {
+      post: "/chatify/auth/v1/revokeUser",
+      body: "*",
+    };
+  };
+
+  // 4. 登出用户（退出当前会话）
+  rpc Logout(LogoutRequest) returns (LogoutResponse){
+    option (google.api.http) = {
+      post: "/chatify/auth/v1/logout",
+      body: "*",
+    };
+  };
+
+  // 5. 使用 refresh token 续签 access token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse){
+    option (google.api.http) = {
+      post: "/chatify/auth/v1/refreshToken",
+      body: "*",
+    };
+  };
+
+  // 6. 校验访问令牌
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse){
+    option (google.api.http) = {
+      get: "/chatify/auth/v1/verifyToken",
+    };
+  };
+}
+
+// ==================== 请求与响应消息 ====================
+
+// 1. 注册
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;  // 前端应加密传输
+  string phone = 4;     // 可选
+}
+
+message RegisterResponse {
+  string user_id = 1;   // 注册成功后返回的用户ID
+}
+
+// 2. 登录
+message LoginRequest {
+  string username = 1;
+  string email = 2;
+  string phone = 3;
+  string password = 4;
+}
+
+message LoginResponse {
+  string user_id = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  string access_expires_in = 4;   // access token 过期时间（秒）
+  string refresh_expires_in = 5;  // refresh token 过期时间（秒）
+}
+
+// 3. 注销用户（永久删除账户）
+message RevokeUserRequest {
+  string user_id = 1;
+  string password = 2;    // 安全验证
+  string token = 3;       // 当前有效的 token，用于身份确认
+}
+
+message RevokeUserResponse {
+  // 无返回内容，成功即表示用户已注销
+  // 可扩展为返回 deleted_at 等审计字段（按需）
+}
+
+// 4. 登出
+message LogoutRequest {
+  string user_id = 1;
+  string refresh_token = 2;  // 用于服务端作废该 refresh token
+}
+
+message LogoutResponse {
+  // 无返回内容，成功即登出
+}
+
+// 5. 续签 Token
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string access_expires_in = 2;
+  // 可选：是否轮换 refresh_token
+  string new_refresh_token = 3;
+  string refresh_expires_in = 4;
+}
+
+// 6. 校验令牌
+message VerifyTokenRequest {
+  string access_token = 1;  // 待验证的访问令牌
+}
+
+message VerifyTokenResponse {
+  string username = 1;     // 用户名
+  string user_id = 2;      // 用户ID
+  string expires_at = 3;   // 令牌过期时间戳
+}

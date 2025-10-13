@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package push.v1;
+
+import "im/v1/message.proto";
+
+option go_package = "api/push/v1;v1";
+
+
+service PushService {
+  // 向指定用户推送消息（同步备用通道）
+  rpc PushToUser(PushRequest) returns (PushResponse);
+  
+  // 批量查询用户在线状态
+  rpc BatchQueryOnline(BatchQueryRequest) returns (BatchQueryResponse);
+}
+
+message PushRequest {
+  string task_id = 1;
+  repeated im.v1.BaseMessage message = 2;   // max size: 1000
+}
+
+message PushResponse {
+  enum Code {
+    OK = 0;
+    TOO_MANY_MESSAGE = 1;
+  }
+  Code code = 1;
+  string message = 2;
+}
+
+message BatchQueryRequest {
+  repeated string user_ids = 1;
+}
+
+message BatchQueryResponse {
+  message UserStatus {
+    string user_id = 1;
+    bool online = 2;
+    string node = 3;
+  }
+  repeated UserStatus statuses = 1;
+}
