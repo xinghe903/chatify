@@ -3,7 +3,7 @@ module access
 go 1.24.7
 
 replace (
-	api => ./api
+	api => ../api
 	pkg => ../pkg
 )
 
@@ -13,6 +13,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.1
 	github.com/google/wire v0.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/redis/go-redis/v9 v9.14.0
 	go.etcd.io/etcd/client/v3 v3.6.5
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
@@ -24,8 +25,10 @@ require (
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-kratos/aegis v0.2.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect

@@ -1,7 +1,7 @@
 package server
 
 import (
-	v1 "push/api/push/v1"
+	v1 "api/push/v1"
 	"push/internal/conf"
 	"push/internal/service"
 

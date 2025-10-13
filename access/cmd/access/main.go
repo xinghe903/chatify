@@ -79,8 +79,8 @@ func main() {
 		Level:  loggingConf.Level,
 		Output: loggingConf.Output,
 	})
-
-	app, cleanup, err := wireApp(&bc, zapLogger)
+	svrInstance := conf.ServerInstance{Id: id, Name: Name, Version: Version, Metadata: map[string]string{}}
+	app, cleanup, err := wireApp(&bc, zapLogger, &svrInstance)
 	if err != nil {
 		panic(err)
 	}

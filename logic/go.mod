@@ -4,6 +4,11 @@ go 1.24.0
 
 toolchain go1.24.7
 
+replace (
+	api => ../api
+	pkg => ../pkg
+)
+
 require (
 	github.com/go-kratos/kratos/contrib/registry/etcd/v2 v2.0.0-20250912104010-25b6c0fb9f38
 	github.com/go-kratos/kratos/v2 v2.9.1

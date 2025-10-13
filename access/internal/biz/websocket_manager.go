@@ -1,6 +1,7 @@
 package biz
 
 import (
+	"access/internal/biz/bo"
 	"context"
 	"errors"
 	"sync"
@@ -11,13 +12,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type SessionRepo interface {
+	SetSession(ctx context.Context, session *bo.Session) error
+	BatchClearSession(ctx context.Context, uids []string) error
+	GetSession(ctx context.Context, uid string) (*bo.Session, error)
+	ClearSession(ctx context.Context, uid string) error
+}
+
 // Client 代表一个 WebSocket 客户端连接
 type Client struct {
 	Conn           *websocket.Conn
 	Send           chan []byte
 	UserID         string
+	UserName       string
 	readCtxCancel  context.CancelCauseFunc
 	writeCtxCancel context.CancelCauseFunc
+	ConnectionId   string
+	ConnectionTime int64
 }
 
 // Manager 管理所有客户端连接
@@ -25,17 +36,39 @@ type Manager struct {
 	clients map[string]*Client
 	mu      sync.RWMutex
 	log     *log.Helper
+	session SessionRepo
 }
 
 // NewManager 创建新的连接管理器
-func NewManager(logger log.Logger) *Manager {
-	return &Manager{
+func NewManager(logger log.Logger, session SessionRepo) (*Manager, func()) {
+	manager := &Manager{
 		clients: make(map[string]*Client),
 		log:     log.NewHelper(logger),
 	}
+	cleanup := func() {
+		manager.log.Info("closing the manager resources")
+		uids := make([]string, 0, len(manager.clients))
+		for _, client := range manager.clients {
+			client.Conn.Close()
+			uids = append(uids, client.UserID)
+		}
+		manager.session.BatchClearSession(context.Background(), uids)
+	}
+	return manager, cleanup
 }
 
 func (m *Manager) StartClient(ctx context.Context, client *Client) {
+	err := m.session.SetSession(ctx, &bo.Session{
+		Uid:            client.UserID,
+		Username:       client.UserName,
+		ConnectionTime: client.ConnectionTime,
+		ConnectionId:   client.ConnectionId,
+	})
+	if err != nil {
+		m.log.WithContext(ctx).Errorf("Set session error: %v", err)
+		client.Conn.Close()
+		return
+	}
 	var rctx, wctx context.Context
 	rctx, client.readCtxCancel = context.WithCancelCause(ctx)
 	wctx, client.writeCtxCancel = context.WithCancelCause(ctx)
@@ -46,15 +79,17 @@ func (m *Manager) StartClient(ctx context.Context, client *Client) {
 	m.readPump(rctx, client)
 }
 
-func (m *Manager) StopClient(client *Client) {
+func (m *Manager) StopClient(ctx context.Context, client *Client) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, ok := m.clients[client.UserID]; !ok {
-		m.log.Errorf("User %s is not exist", client.UserID)
+		m.log.WithContext(ctx).Warnf("User %s is not exist", client.UserID)
 		return
 	}
+	m.log.WithContext(ctx).Debugf("User %s disconnected", client.UserID)
 	client.Conn.Close()
 	delete(m.clients, client.UserID)
+	m.session.ClearSession(ctx, client.UserID)
 }
 
 // SendToUser 向指定用户发送消息
@@ -80,7 +115,7 @@ func (m *Manager) Count() int {
 
 func (m *Manager) readPump(ctx context.Context, client *Client) {
 	defer func() {
-		m.StopClient(client)
+		m.StopClient(ctx, client)
 		client.readCtxCancel(errors.New("read unregister cause"))
 	}()
 	// 无法写入消息，则认为改连接已经断开
@@ -112,7 +147,7 @@ func (m *Manager) writePump(ctx context.Context, client *Client) {
 	ticker := time.NewTicker(54 * time.Second)
 	defer func() {
 		ticker.Stop()
-		m.StopClient(client)
+		m.StopClient(ctx, client)
 		client.writeCtxCancel(errors.New("write unregister cause"))
 	}()
 

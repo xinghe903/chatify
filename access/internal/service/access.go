@@ -2,10 +2,13 @@ package service
 
 import (
 	"access/internal/biz"
+	"access/internal/conf"
 	v1 "api/access/v1"
 	"context"
+	"errors"
 	"net/http"
 	"pkg/auth"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gorilla/websocket"
@@ -24,16 +27,23 @@ var (
 
 type AccessService struct {
 	v1.UnimplementedAccessServiceServer
-	log       *log.Helper
-	wsManager *biz.Manager
-	consumer  *biz.Consumer
+	log         *log.Helper
+	connManager *biz.Manager
+	consumer    *biz.Consumer
+	svrInstance *conf.ServerInstance
 }
 
-func NewAccessService(logger log.Logger, consumer *biz.Consumer) *AccessService {
+func NewAccessService(
+	logger log.Logger,
+	consumer *biz.Consumer,
+	manager *biz.Manager,
+	svrInstance *conf.ServerInstance,
+) *AccessService {
 	svc := &AccessService{
-		log:       log.NewHelper(logger),
-		wsManager: biz.NewManager(logger),
-		consumer:  consumer,
+		log:         log.NewHelper(logger),
+		connManager: manager,
+		consumer:    consumer,
+		svrInstance: svrInstance,
 	}
 	return svc
 }
@@ -48,13 +58,16 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx = auth.NewContext(ctx, r.Header.Get(string(auth.USER_ID)), r.Header.Get(string(auth.USER_NAME)))
 	client := &biz.Client{
-		Conn:   conn,
-		Send:   make(chan []byte, 256),
-		UserID: auth.GetUserID(ctx),
+		Conn:           conn,
+		Send:           make(chan []byte, 256),
+		UserID:         auth.GetUserID(ctx),
+		UserName:       auth.GetUserName(ctx),
+		ConnectionTime: time.Now().Unix(),
+		ConnectionId:   s.svrInstance.Id,
 	}
-	s.log.WithContext(ctx).Debugf("Client connected: %s", conn.RemoteAddr())
+	s.log.WithContext(ctx).Debugf("Client connected: %s, serviceId: %s", conn.RemoteAddr(), s.svrInstance.Id)
 	s.log.WithContext(ctx).Debugf("Client userId: %s, username: %s", client.UserID, auth.GetUserName(ctx))
-	s.wsManager.StartClient(ctx, client)
+	s.connManager.StartClient(ctx, client)
 }
 
 // func (s *AccessService) dispatch(message *v1.ClientToAccessMessage) {
@@ -73,5 +86,15 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // }
 
 func (s *AccessService) PushMessage(ctx context.Context, req *v1.PushMessageRequest) (*v1.PushMessageResponse, error) {
+	s.log.WithContext(ctx).Debugf("Received message: %+v\n", req)
+	for _, reqMessage := range req.ConnectionMessages {
+		if reqMessage.ConnectionId != s.svrInstance.Id {
+			s.log.WithContext(ctx).Errorf("Received message from unknown connection: %s", reqMessage.ConnectionId)
+			return nil, errors.New("unknown connection id")
+		}
+		for _, message := range reqMessage.Message {
+			s.connManager.SendToUser(ctx, message.ToUserId, []byte(message.String()))
+		}
+	}
 	return nil, nil
 }
