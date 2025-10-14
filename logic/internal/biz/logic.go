@@ -1,152 +1,106 @@
 package biz
 
 import (
+	v1 "api/logic/v1"
 	"context"
 	"errors"
-	"fmt"
-	v1 "logic/api/logic/v1"
 	"logic/internal/conf"
-	"time"
-
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 
 	"logic/internal/biz/bo"
-	"pkg/auth/sign"
+	"pkg/auth"
+
+	"github.com/go-kratos/kratos/v2/log"
 )
 
-type UserRepo interface {
-	IsUserOnline(ctx context.Context, userID string) (bool, error)
-}
-
-type CacheRepo interface {
-	GetClient() *redis.Client
-}
-
 type PushRepo interface {
-	SendMessage(ctx context.Context, message *bo.Message) error
+	SendMessage(ctx context.Context, taskId string, message []*bo.Message) error
 }
 
 type Logic struct {
-	log           *log.Helper
-	user          UserRepo
-	replayChecker *sign.ReplayChecker
-	redisClient   *redis.Client
-	pushClient    PushRepo
-	config        *conf.Bootstrap
+	log        *log.Helper
+	pushClient PushRepo
+	config     *conf.Bootstrap
+	sonyFlake  *auth.Sonyflake
 }
 
 // NewLogic 构造函数，通过依赖注入获取所有必要的服务
 func NewLogic(
 	logger log.Logger,
-	user UserRepo,
-	cache CacheRepo,
 	pushClient PushRepo,
 	c *conf.Bootstrap,
 ) *Logic {
-
-	replayChecker := sign.NewReplayChecker(cache.GetClient(), 0, 0)
 	return &Logic{
-		log:           log.NewHelper(logger),
-		user:          user,
-		replayChecker: replayChecker,
-		redisClient:   cache.GetClient(),
-		pushClient:    pushClient,
-		config:        c,
+		log:        log.NewHelper(logger),
+		pushClient: pushClient,
+		config:     c,
+		sonyFlake:  auth.NewSonyflake(),
 	}
 }
 
-// SendMessage 发送消息
-// @Param message 发送消息的参数
-// @Return messageId 消息id
+// SendSystemPush 处理系统推送消息
+// @Param ctx 上下文
+// @Param req 系统推送请求
+// @Return *v1.SystemPushResponse 响应
 // @Return error 错误
-func (l *Logic) SendMessage(ctx context.Context, message *bo.Message) (string, error) {
-	if message == nil {
-		return "", v1.ErrorInternalError("message is empty")
+// SendSystemPush 处理系统推送请求
+// @Summary 系统推送接口
+// @Description 处理系统发送的推送消息，支持黑白名单过滤
+// @Tags 系统推送
+// @Param req body v1.SystemPushRequest true "推送请求"
+// @Return *v1.SystemPushResponse 响应
+// @Return error 错误
+func (l *Logic) SendSystemPush(ctx context.Context, req *v1.SystemPushRequest) (*v1.SystemPushResponse, error) {
+	l.log.WithContext(ctx).Infof("Receive system push request from %s, content_id: %s", req.FromUserId, req.ContentId)
+
+	// 1. 检查目标用户数量是否超过限制
+	if len(req.ToUserIds) > 1000 {
+		return &v1.SystemPushResponse{
+			Code:    v1.SystemPushResponse_TOO_MANY_TARGET,
+			Message: "Too many target users",
+		}, nil
 	}
-	if len(message.Target) == 0 {
-		return "", v1.ErrorUserNotFound("target is empty")
+
+	// 2. 进行用户校验和黑白名单过滤
+
+	// 3. 创建消息列表
+	messages := bo.NewMessagesByUserIDs(req)
+
+	// 4. 调用push服务发送消息
+	var err error
+	var contentId string
+	if contentId, err = l.sonyFlake.GenerateBase62(); err != nil {
+		return &v1.SystemPushResponse{
+			Code:    v1.SystemPushResponse_SERVER_ERROR,
+			Message: "System error",
+		}, errors.Join(errors.New("failed to generate content ID"), err)
 	}
-	// 生成唯一消息ID
-	messageId := generateUniqueMessageID()
-	message.MessageId = messageId
-	onlines := make([]*bo.TargetUser, 0)
-	offlines := make([]string, 0)
-	// 单聊
-	for _, target := range message.Target {
-		if target.GroupId != "" {
-			continue
+	for _, message := range messages {
+		message.ContentId = "content" + contentId
+		if message.MsgId, err = l.sonyFlake.GenerateBase62(); err != nil {
+			return &v1.SystemPushResponse{
+				Code:    v1.SystemPushResponse_SERVER_ERROR,
+				Message: "System error",
+			}, errors.Join(errors.New("failed to generate message ID"), err)
 		}
-		// 查询用户在线状态
-		isOnline, err := l.user.IsUserOnline(ctx, target.UserId)
-		if err != nil {
-			l.log.WithContext(ctx).Errorf("Failed to check user %s online status: %v", target.UserId, err)
-			continue
-		}
-		if isOnline {
-			onlines = append(onlines, &bo.TargetUser{UserId: target.UserId, FromUserId: "xinghe"})
-		} else {
-			offlines = append(offlines, target.UserId)
-		}
 	}
-
-	if err := l.pushClient.SendMessage(ctx, &bo.Message{
-		Target:      onlines,
-		Content:     message.Content,
-		ContentType: message.ContentType,
-		ExpireTime:  message.ExpireTime,
-		MessageId:   messageId,
-	}); err != nil {
-		return "", v1.ErrorInternalError("failed to send message")
+	var taskId string
+	if taskId, err = l.sonyFlake.GenerateBase62(); err != nil {
+		return &v1.SystemPushResponse{
+			Code:    v1.SystemPushResponse_SERVER_ERROR,
+			Message: "System error",
+		}, errors.Join(errors.New("failed to generate task ID"), err)
 	}
-
-	// 处理离线数据
-	l.log.WithContext(ctx).Debugf("Offline users: %v", offlines)
-
-	return messageId, nil
-}
-
-// ValidateRequest 校验消息签名
-func (l *Logic) ValidateRequest(ctx context.Context, message *sign.SignParam) error {
-	if message == nil {
-		return fmt.Errorf("message is nil")
+	if err = l.pushClient.SendMessage(ctx, "task"+taskId, messages); err != nil {
+		l.log.WithContext(ctx).Errorf("Failed to send message to push service: %v", err)
+		return &v1.SystemPushResponse{
+			Code:    v1.SystemPushResponse_SERVER_ERROR,
+			Message: "System error",
+		}, errors.Join(errors.New("failed to send message to push service"), err)
 	}
-
-	// 使用消息ID作为请求ID进行防重放校验
-	err := l.replayChecker.ValidateRequest(context.Background(), message, l.config.Server.Secret)
-	if err != nil {
-		l.log.WithContext(ctx).Warnf("Failed to validate request: %s", err.Error())
-		if errors.Is(err, sign.ErrRequestExpired) {
-			return v1.ErrorMessageExpired("request expired. request_time=%d, now=%d", message.Timestamp, time.Now().UnixMilli())
-		}
-
-		if errors.Is(err, sign.ErrRequestRepeat) {
-			return v1.ErrorMessageRepeat("message repeat. request_id=%s", message.RequestID)
-		}
-
-		return v1.ErrorPermissionDenied("invalid signature~~")
-	}
-	return nil
-}
-
-// generateUniqueMessageID 生成唯一消息ID
-func generateUniqueMessageID() string {
-	return uuid.New().String()
-}
-
-// pushMessageToUser 推送消息给用户
-func (l *Logic) pushMessageToUser(ctx context.Context, userId string, message *bo.Message) error {
-	// 将消息内容转换为字节数组
-	// content, err := json.Marshal(message)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to marshal message: %w", err)
-	// }
-	l.log.Debugf("Pushing message to user %s: %s", userId, message)
-	// 调用Push服务的gRPC接口
-	if err := l.pushClient.SendMessage(ctx, message); err != nil {
-		return fmt.Errorf("failed to push message to user %s: %w", userId, err)
-	}
-
-	return nil
+	l.log.WithContext(ctx).Infof("Sent message to push service. TaskID: %s, len: %d", taskId, len(messages))
+	// 5. 返回成功响应
+	return &v1.SystemPushResponse{
+		Code:    v1.SystemPushResponse_OK,
+		Message: "Success",
+	}, nil
 }

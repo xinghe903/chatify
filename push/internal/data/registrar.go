@@ -26,3 +26,7 @@ func NewEtcdClient(cb *conf.Bootstrap) (*clientv3.Client, error) {
 func NewRegistry(etcd *clientv3.Client) registry.Registrar {
 	return registryetcd.New(etcd)
 }
+
+func NewDiscovery(etcd *clientv3.Client) registry.Discovery {
+	return registryetcd.New(etcd)
+}

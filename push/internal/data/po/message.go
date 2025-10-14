@@ -1,8 +1,8 @@
 package po
 
 import (
+	"pkg/model"
 	"strings"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -11,9 +11,9 @@ import (
 // 定义了消息在推送过程中的状态
 const (
 	// MessageStatusPending 待发送 - 消息创建但未开始发送流程或发送失败
-	MessageStatusPending = "pending"
+	MessageStatusPending MessageStatus = "pending"
 	// MessageStatusSent 发送成功 - 消息已通过任一方式成功送达
-	MessageStatusSent = "sent"
+	MessageStatusSent MessageStatus = "sent"
 )
 
 // MessageStatus 消息状态类型
@@ -25,7 +25,7 @@ type MessageStatus string
 // 数据库表名: messages
 
 type Message struct {
-	ID          string        `json:"id" gorm:"primaryKey"`
+	model.BaseModel
 	MsgID       string        `json:"msg_id" gorm:"index:idx_msg_id"`
 	MessageType int32         `json:"message_type"`
 	FromUserID  string        `json:"from_user_id" gorm:"index:idx_from_user"`
@@ -37,8 +37,7 @@ type Message struct {
 	ContentID   string        `json:"content_id" gorm:"index:idx_content_id"`
 	TaskID      string        `json:"task_id" gorm:"index:idx_task_id"`
 	Status      MessageStatus `json:"status"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	Description string        `json:"description"`
 }
 
 // TableName 设置表名
@@ -48,7 +47,8 @@ func (Message) TableName() string {
 
 func (s *Message) BeforeCreate(tx *gorm.DB) error {
 	if !strings.HasPrefix(s.ID, "mid") {
-		s.ID = "mid" + s.ID
+		// push message id prefix
+		s.ID = "pmid" + s.ID
 	}
 	return nil
 }

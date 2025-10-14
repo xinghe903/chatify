@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"push/internal/biz/bo"
-	"push/internal/data/po"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -22,6 +21,12 @@ const (
 var (
 	ErrPartialSuccess = errors.New("partial message success")
 	ErrAllFailed      = errors.New("all message failed")
+
+	// ErrPending 消息未发送原因
+	ErrPendingSendFailed    = errors.New("send failed")
+	ErrPendingSessionStatus = errors.New("session status error")
+	ErrPendingUserOffline   = errors.New("user offline")
+	ErrPendingUserInvalid   = errors.New("user invalid")
 )
 
 type SessionRepo interface {
@@ -34,7 +39,8 @@ type SessionRepo interface {
 // MessageRepo 消息仓库接口
 type MessageRepo interface {
 	// 批量存储消息
-	SaveMessages(ctx context.Context, messages []*po.Message) error
+	SaveMessages(ctx context.Context, messages []*bo.Message) error
+	UpdateMessageStatus(ctx context.Context, messages []*bo.Message) error
 }
 
 type AccessNodeManager interface {
@@ -61,15 +67,67 @@ func NewPush(logger log.Logger, session SessionRepo, message MessageRepo, manage
 
 // PushToUser 推送消息到用户
 func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.BaseMessage) error {
-	p.log.WithContext(ctx).Debug("PushToUser", "taskID", taskID, "messageCount", len(messages))
-	var dbMessages []*po.Message
+	p.log.WithContext(ctx).Debugf("PushToUser taskID=%s, messageCount=%d", taskID, len(messages))
+	// 创建数据库消息
+	if err := p.saveMessages(ctx, taskID, messages); err != nil {
+		return err
+	}
+	// 把所有消息都设置为发送失败
+	msgSendMask := make(map[string]error, len(messages))
+	for _, msg := range messages {
+		msgSendMask[msg.MsgId] = ErrPendingSendFailed
+	}
+	// 将消息按连接ID进行分组
+	accessMessageGroups := p.groupMessageByConnectId(ctx, messages, msgSendMask)
+	// 发送消息, 并记录发送成功消息结果
+	successMsgIDs := p.sendMessageToAccessNode(ctx, accessMessageGroups, msgSendMask)
+	// 更新消息状态
+	if err := p.updateMessageStatus(ctx, msgSendMask); err != nil {
+		return err
+	}
+	p.log.WithContext(ctx).Debugf("PushToUser completed. taskID=%s, messageCount=%d, successCount=%d", taskID, len(messages), len(successMsgIDs))
+	return nil
+}
+
+// saveMessages 保存消息到数据库
+func (p *Push) saveMessages(ctx context.Context, taskID string, messages []*im_v1.BaseMessage) error {
+	boMessages := make([]*bo.Message, 0, len(messages))
+	for _, msg := range messages {
+		boMessage := &bo.Message{
+			MsgID:       msg.MsgId,
+			MessageType: int32(msg.MessageType),
+			FromUserID:  msg.FromUserId,
+			TargetType:  int32(msg.TargetType),
+			ToUserID:    msg.ToUserId,
+			Content:     msg.Content,
+			Timestamp:   msg.Timestamp,
+			ExpireTime:  msg.ExpireTime,
+			ContentID:   msg.ContentId,
+			TaskID:      taskID,
+			Status:      bo.MessageStatusPending,
+		}
+		boMessages = append(boMessages, boMessage)
+	}
+	if err := p.messageRepo.SaveMessages(ctx, boMessages); err != nil {
+		p.log.WithContext(ctx).Errorf("failed to save messages. err=%s", err.Error())
+		return err
+	}
+	return nil
+}
+
+// groupMessageByConnectId 按连接ID进行消息分组，并对无法分组的消息进行错误处理
+func (p *Push) groupMessageByConnectId(ctx context.Context,
+	messages []*im_v1.BaseMessage,
+	msgSendMask map[string]error,
+) map[string]*access_v1.PushMessageRequest {
 	// 创建一个map，用于按access服务实例ID进行分组
 	accessMessageGroups := make(map[string]*access_v1.PushMessageRequest)
 	// 遍历所有消息，进行分组处理
 	for _, msg := range messages {
 		// 忽略空的用户ID
 		if msg.ToUserId == "" {
-			p.log.WithContext(ctx).Warn("ignore message with empty to_user_id", "msg_id", msg.MsgId)
+			msgSendMask[msg.MsgId] = ErrPendingUserInvalid
+			p.log.WithContext(ctx).Warnf("ignore message with empty to_user_id msg_id=%s", msg.MsgId)
 			continue
 		}
 		// 设置分布式锁，防止重复发送
@@ -79,31 +137,16 @@ func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.
 		// 查询用户的完整会话信息
 		session, err := p.session.GetSession(ctx, msg.ToUserId)
 		if err != nil {
-			p.log.WithContext(ctx).Error("failed to get user session", "to_user_id", msg.ToUserId, "error", err.Error())
+			msgSendMask[msg.MsgId] = ErrPendingSessionStatus
+			p.log.WithContext(ctx).Errorf("failed to get user session. to_user_id=%s, error=%s", msg.ToUserId, err.Error())
 			// 继续处理其他消息
 			continue
 		}
 
 		// 如果用户没有连接，记录日志后继续处理其他消息
 		if session == nil || session.ConnectionId == "" {
-			p.log.WithContext(ctx).Debug("user has no active connections", "to_user_id", msg.ToUserId)
-			// 保存消息到数据库，但不发送
-			dbMessage := &po.Message{
-				MsgID:       msg.MsgId,
-				MessageType: int32(msg.MessageType),
-				FromUserID:  msg.FromUserId,
-				TargetType:  int32(msg.TargetType),
-				ToUserID:    msg.ToUserId,
-				Content:     msg.Content,
-				Timestamp:   msg.Timestamp,
-				ExpireTime:  msg.ExpireTime,
-				ContentID:   msg.ContentId,
-				TaskID:      taskID,
-				Status:      po.MessageStatusPending,
-				CreatedAt:   time.Now(),
-				UpdatedAt:   time.Now(),
-			}
-			dbMessages = append(dbMessages, dbMessage)
+			msgSendMask[msg.MsgId] = ErrPendingUserOffline
+			p.log.WithContext(ctx).Debugf("user has no active connections to_user_id=%s", msg.ToUserId)
 			continue
 		}
 
@@ -115,18 +158,50 @@ func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.
 		}
 		accessMessageGroups[session.ConnectionId].Message = append(accessMessageGroups[session.ConnectionId].Message, msg)
 	}
+	return accessMessageGroups
+}
+
+// sendMessageToAccessNode 发送消息到 access 节点
+// 返回发送成功的消息ID列表
+func (p *Push) sendMessageToAccessNode(ctx context.Context,
+	accessMessageGroups map[string]*access_v1.PushMessageRequest,
+	msgSendMask map[string]error) []string {
 	var successMsgIDs []string
 	for connectId, messages := range accessMessageGroups {
 		// 获取该用户当前连接的 access 节点
 		successIds, err := p.manager.SendToUser(ctx, connectId, messages.Message)
 		if err != nil {
-			p.log.WithContext(ctx).Error("failed to send message to access node", "connectId", connectId, "error", err.Error())
-			// 继续处理其他消息
+			// 发送失败，不需要额外记录错误。因为所有消息都是默认发送失败的情况
+			p.log.WithContext(ctx).Errorf("failed to send message to access node. connectId=%s, error=%s", connectId, err.Error())
 			continue
+		}
+		// 标记发送成功标识
+		for _, msgId := range successIds {
+			msgSendMask[msgId] = nil
 		}
 		successMsgIDs = append(successMsgIDs, successIds...)
 	}
+	return successMsgIDs
+}
 
-	p.log.WithContext(ctx).Info("PushToUser completed", "taskID", taskID, "messageCount", len(messages), "savedCount", len(dbMessages))
+// updateMessageStatus 更新消息状态
+func (p *Push) updateMessageStatus(ctx context.Context, msgSendMask map[string]error) error {
+	boMessages := make([]*bo.Message, 0, len(msgSendMask))
+	for msgId, reason := range msgSendMask {
+		msg := &bo.Message{
+			MsgID:       msgId,
+			Status:      bo.MessageStatusSent,
+			Description: "",
+		}
+		if reason != nil {
+			msg.Status = bo.MessageStatusPending
+			msg.Description = reason.Error()
+		}
+		boMessages = append(boMessages, msg)
+	}
+	if err := p.messageRepo.UpdateMessageStatus(ctx, boMessages); err != nil {
+		p.log.WithContext(ctx).Errorf("failed to update message status. err=%s", err.Error())
+		return err
+	}
 	return nil
 }

@@ -3,34 +3,37 @@ package service
 import (
 	"context"
 
-	v1 "logic/api/logic/v1"
+	"github.com/go-kratos/kratos/v2/log"
+
+	v1 "api/logic/v1"
 	"logic/internal/biz"
 )
 
 // LogicService is a greeter service.
 type LogicService struct {
 	v1.UnimplementedLogicServiceServer
-
-	uc *biz.Logic
+	log *log.Helper
+	uc  *biz.Logic
 }
 
 // NewLogicService new a greeter service.
-func NewLogicService(uc *biz.Logic) *LogicService {
-	return &LogicService{uc: uc}
+func NewLogicService(uc *biz.Logic, logger log.Logger) *LogicService {
+	return &LogicService{uc: uc, log: log.NewHelper(log.With(logger, "module", "logic/service"))}
 }
 
-// SendMessage 发送消息
-func (s *LogicService) SendMessage(ctx context.Context, in *v1.SystemPushRequest) (*v1.SystemPushResponse, error) {
-	// if err := s.uc.ValidateRequest(ctx, &sign.SignParam{
-	// 	RequestID: in.RequestId,
-	// 	Signature: string(in.Signature),
-	// 	Timestamp: in.Timestamp,
-	// }); err != nil {
-	// 	return nil, err
-	// }
-	// messageId, err := s.uc.SendMessage(ctx, bo.NewMessage(in))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return &v1.SystemPushResponse{}, nil
+// SendSystemPush 实现系统推送接口
+func (s *LogicService) SendSystemPush(ctx context.Context, in *v1.SystemPushRequest) (*v1.SystemPushResponse, error) {
+	s.log.WithContext(ctx).Infof("Receive system push request. ContentID: %s, UserCount: %d", in.ContentId, len(in.ToUserIds))
+
+	// 调用业务层处理系统推送
+	resp, err := s.uc.SendSystemPush(ctx, in)
+	if err != nil {
+		s.log.WithContext(ctx).Errorf("Failed to process system push: %v", err)
+		return &v1.SystemPushResponse{
+			Code:    v1.SystemPushResponse_OK,
+			Message: "System error",
+		}, nil
+	}
+
+	return resp, nil
 }

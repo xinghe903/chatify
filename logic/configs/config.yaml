@@ -25,3 +25,20 @@ data:
 push_client:
   addr: localhost:30023
   timeout: 5s
+
+# 监控配置统一放在monitoring下
+monitoring:
+  service_name: logic-service
+  tracing:
+    sampler: 1.0
+    exporter: jaeger
+    jaeger:
+      endpoint: http://127.0.0.1:14268/api/traces
+  logging:
+    level: debug
+    format: json
+    output: stdout
+  metrics:
+    prometheus:
+      endpoint: :2112
+      timeout: 10s

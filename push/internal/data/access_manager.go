@@ -43,7 +43,7 @@ func NewAccessNodeManager(
 	discovery registry.Discovery,
 	data *Data,
 	logger log.Logger,
-) (*accessNodeManager, func(), error) {
+) (biz.AccessNodeManager, func(), error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 
 	manager := &accessNodeManager{

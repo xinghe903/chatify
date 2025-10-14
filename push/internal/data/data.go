@@ -17,7 +17,15 @@ import (
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewSessionRepo, NewAccessNodeManager, NewEtcdClient, NewRegistry)
+var ProviderSet = wire.NewSet(
+	NewData,
+	NewSessionRepo,
+	NewAccessNodeManager,
+	NewEtcdClient,
+	NewRegistry,
+	NewMessageRepo,
+	NewDiscovery,
+)
 
 // gormLogAdapter 是一个适配器，将Kratos的logger转换为GORM可用的logger
 // 实现了gorm.io/gorm/logger.Writer接口

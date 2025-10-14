@@ -2,6 +2,7 @@ package data
 
 import (
 	"logic/internal/conf"
+
 	registryetcd "github.com/go-kratos/kratos/contrib/registry/etcd/v2"
 	"github.com/go-kratos/kratos/v2/registry"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -25,5 +26,9 @@ func NewEtcdClient(cb *conf.Bootstrap) (*clientv3.Client, error) {
 
 // NewRegistry 创建服务注册器
 func NewRegistry(etcd *clientv3.Client) registry.Registrar {
+	return registryetcd.New(etcd)
+}
+
+func NewDiscovery(etcd *clientv3.Client) registry.Discovery {
 	return registryetcd.New(etcd)
 }

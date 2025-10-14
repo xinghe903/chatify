@@ -27,11 +27,11 @@ func NewPushService(uc *biz.Push, logger log.Logger) *PushService {
 
 // PushToUser 实现向指定用户推送消息的RPC方法
 func (s *PushService) PushToUser(ctx context.Context, in *v1.PushRequest) (*v1.PushResponse, error) {
-	s.log.Debug("PushToUser request received", "task_id", in.TaskId, "message_count", len(in.Message))
+	s.log.WithContext(ctx).Debugf("PushToUser request received. taskID=%s, messageCount=%d", in.TaskId, len(in.Message))
 
 	// 检查消息数量是否超过限制
 	if len(in.Message) > 1000 {
-		s.log.Warn("too many messages in one request", "count", len(in.Message))
+		s.log.WithContext(ctx).Warnf("too many messages in one request. count=%d", len(in.Message))
 		return &v1.PushResponse{
 			Code:    v1.PushResponse_TOO_MANY_MESSAGE,
 			Message: "Too many messages in one request",
@@ -41,7 +41,7 @@ func (s *PushService) PushToUser(ctx context.Context, in *v1.PushRequest) (*v1.P
 	// 调用业务层的PushToUser方法处理消息推送
 	err := s.uc.PushToUser(ctx, in.TaskId, in.Message)
 	if err != nil {
-		s.log.Error("PushToUser failed", "error", err.Error())
+		s.log.WithContext(ctx).Errorf("PushToUser failed. error=%s", err.Error())
 		return nil, err
 	}
 
@@ -50,14 +50,13 @@ func (s *PushService) PushToUser(ctx context.Context, in *v1.PushRequest) (*v1.P
 		Code:    v1.PushResponse_OK,
 		Message: "Push to user success",
 	}
-
-	s.log.Info("PushToUser request processed successfully", "task_id", in.TaskId, "message_count", len(in.Message))
+	s.log.WithContext(ctx).Debugf("PushToUser request processed successfully. taskID=%s, messageCount=%d", in.TaskId, len(in.Message))
 	return response, nil
 }
 
 // BatchQueryOnline 实现批量查询用户在线状态的RPC方法
 func (s *PushService) BatchQueryOnline(ctx context.Context, in *v1.BatchQueryRequest) (*v1.BatchQueryResponse, error) {
-	s.log.Debug("BatchQueryOnline request received", "user_count", len(in.UserIds))
+	s.log.WithContext(ctx).Debugf("BatchQueryOnline request received. userCount=%d", len(in.UserIds))
 
 	// 实现批量查询用户在线状态的逻辑
 	// 这里为了示例，返回模拟数据
@@ -76,7 +75,6 @@ func (s *PushService) BatchQueryOnline(ctx context.Context, in *v1.BatchQueryReq
 	response := &v1.BatchQueryResponse{
 		Statuses: statuses,
 	}
-
-	s.log.Info("BatchQueryOnline request processed successfully", "user_count", len(in.UserIds))
+	s.log.WithContext(ctx).Debugf("BatchQueryOnline request processed successfully. userCount=%d", len(in.UserIds))
 	return response, nil
 }

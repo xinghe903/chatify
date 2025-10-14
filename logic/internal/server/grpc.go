@@ -1,7 +1,7 @@
 package server
 
 import (
-	v1 "logic/api/logic/v1"
+	v1 "api/logic/v1"
 	"logic/internal/conf"
 	"logic/internal/service"
 
@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
+	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 )
 
@@ -18,7 +19,7 @@ func NewGRPCServer(cb *conf.Bootstrap, svc *service.LogicService, logger log.Log
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
-			// logging.Server(logger),
+			tracing.Server(),
 			middleware.ErrorEncoder(),
 		),
 	}
