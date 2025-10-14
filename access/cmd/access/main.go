@@ -79,13 +79,13 @@ func main() {
 		Level:  loggingConf.Level,
 		Output: loggingConf.Output,
 	})
-	svrInstance := conf.ServerInstance{Id: id, Name: Name, Version: Version, Metadata: map[string]string{}}
+	svrInstance := conf.ServerInstance{Name: Name, Version: Version, Metadata: map[string]string{}}
 	app, cleanup, err := wireApp(&bc, zapLogger, &svrInstance)
 	if err != nil {
 		panic(err)
 	}
 	defer cleanup()
-
+	svrInstance.Id = app.ID()
 	// start and wait for stop signal
 	if err := app.Run(); err != nil {
 		panic(err)

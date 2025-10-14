@@ -23,7 +23,7 @@ data:
 
 # Push服务配置
 push_client:
-  addr: localhost:30023
+  addr: push
   timeout: 5s
 
 # 监控配置统一放在monitoring下

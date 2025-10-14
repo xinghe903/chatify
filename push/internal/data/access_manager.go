@@ -14,6 +14,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
+	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	ggrpc "google.golang.org/grpc"
@@ -51,6 +52,7 @@ func NewAccessNodeManager(
 		data:      data,
 		log:       log.NewHelper(log.With(logger, "module", "access_node_manager")),
 		accesss:   make(map[string]v1.AccessServiceClient),
+		conns:     make(map[string]*ggrpc.ClientConn),
 		// ctx:           ctx,
 		cancel: cancel,
 		// servicePrefix: "access", // Kratos 默认服务名，实际注册为 /ms/instance/{sid}
@@ -148,6 +150,7 @@ func (m *accessNodeManager) updateNodesFromInstances(ctx context.Context, watche
 				grpc.WithMiddleware(
 					recovery.Recovery(),
 					circuitbreaker.Client(),
+					tracing.Client(),
 				),
 			)
 			if err != nil {
@@ -176,6 +179,7 @@ func (m *accessNodeManager) SendToUser(ctx context.Context, connectId string, me
 	if client, ok = m.accesss[connectId]; !ok {
 		return nil, errors.New("access node not found")
 	}
+	m.log.WithContext(ctx).Debugf("Send message to access node: %s", connectId)
 	rsp, err := client.PushMessage(ctx, &v1.PushMessageRequest{
 		ConnectionId: connectId,
 		Message:      messages,

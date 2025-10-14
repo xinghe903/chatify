@@ -3,8 +3,7 @@
 
 openapi: 3.0.3
 info:
-    title: AuthService API
-    description: 认证服务
+    title: ""
     version: 0.0.1
 paths:
     /chatify/auth/v1/login:
@@ -120,6 +119,25 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/auth.v1.VerifyTokenResponse'
+    /chatify/logic/v1/sendSystemPush:
+        post:
+            tags:
+                - LogicService
+            description: 系统主动推送（公告、通知）
+            operationId: LogicService_SendSystemPush
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/logic.v1.SystemPushRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/logic.v1.SystemPushResponse'
 components:
     schemas:
         auth.v1.LoginRequest:
@@ -215,5 +233,36 @@ components:
                     type: string
                 expiresAt:
                     type: string
+        logic.v1.SystemPushRequest:
+            type: object
+            properties:
+                contentId:
+                    type: string
+                content:
+                    type: string
+                    format: bytes
+                timestamp:
+                    type: string
+                pushType:
+                    type: integer
+                    format: enum
+                fromUserId:
+                    type: string
+                toUserIds:
+                    type: array
+                    items:
+                        type: string
+                expireTime:
+                    type: string
+        logic.v1.SystemPushResponse:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    format: enum
+                message:
+                    type: string
 tags:
     - name: AuthService
+      description: 认证服务
+    - name: LogicService

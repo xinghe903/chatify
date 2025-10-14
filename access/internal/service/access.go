@@ -2,6 +2,7 @@ package service
 
 import (
 	"access/internal/biz"
+	"access/internal/biz/bo"
 	"access/internal/conf"
 	v1 "api/access/v1"
 	"context"
@@ -59,7 +60,7 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = auth.NewContext(ctx, r.Header.Get(string(auth.USER_ID)), r.Header.Get(string(auth.USER_NAME)))
 	client := &biz.Client{
 		Conn:           conn,
-		Send:           make(chan []byte, 256),
+		Send:           make(chan *bo.SendContext, 100),
 		UserID:         auth.GetUserID(ctx),
 		UserName:       auth.GetUserName(ctx),
 		ConnectionTime: time.Now().Unix(),
@@ -87,14 +88,19 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *AccessService) PushMessage(ctx context.Context, req *v1.PushMessageRequest) (*v1.PushMessageResponse, error) {
 	s.log.WithContext(ctx).Debugf("Received message: %+v\n", req)
-	for _, reqMessage := range req.ConnectionMessages {
-		if reqMessage.ConnectionId != s.svrInstance.Id {
-			s.log.WithContext(ctx).Errorf("Received message from unknown connection: %s", reqMessage.ConnectionId)
-			return nil, errors.New("unknown connection id")
-		}
-		for _, message := range reqMessage.Message {
-			s.connManager.SendToUser(ctx, message.ToUserId, []byte(message.String()))
-		}
+	if req.ConnectionId != s.svrInstance.Id {
+		s.log.WithContext(ctx).Errorf("Received message from unknown connection: %s", req.ConnectionId)
+		return nil, errors.New("unknown connection id")
 	}
-	return nil, nil
+	var successMsgIDs []string
+	for _, message := range req.Message {
+		s.connManager.SendToUser(ctx, message.ToUserId, []byte(message.String()))
+		successMsgIDs = append(successMsgIDs, message.MsgId)
+	}
+
+	return &v1.PushMessageResponse{
+		Code:              v1.PushMessageResponse_ALL_SUCCESS,
+		Message:           "success",
+		SuccessMessageIds: successMsgIDs,
+	}, nil
 }

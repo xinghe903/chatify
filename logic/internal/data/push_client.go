@@ -11,6 +11,7 @@ import (
 	"pkg/auth"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 )
@@ -29,6 +30,9 @@ func NewPushServiceClient(c *conf.Bootstrap, logger log.Logger, r registry.Disco
 		context.Background(),
 		grpc.WithEndpoint(fmt.Sprintf("discovery:///%s", cfg.Addr)),
 		grpc.WithDiscovery(r),
+		grpc.WithMiddleware(
+			tracing.Client(),
+		),
 	)
 	if err != nil {
 		panic("Failed to create push service gRPC connection. " + err.Error())

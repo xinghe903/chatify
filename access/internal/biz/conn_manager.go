@@ -22,7 +22,7 @@ type SessionRepo interface {
 // Client 代表一个 WebSocket 客户端连接
 type Client struct {
 	Conn           *websocket.Conn
-	Send           chan []byte
+	Send           chan *bo.SendContext
 	UserID         string
 	UserName       string
 	readCtxCancel  context.CancelCauseFunc
@@ -44,6 +44,7 @@ func NewManager(logger log.Logger, session SessionRepo) (*Manager, func()) {
 	manager := &Manager{
 		clients: make(map[string]*Client),
 		log:     log.NewHelper(logger),
+		session: session,
 	}
 	cleanup := func() {
 		manager.log.Info("closing the manager resources")
@@ -97,8 +98,12 @@ func (m *Manager) SendToUser(ctx context.Context, userID string, message []byte)
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if client, ok := m.clients[userID]; ok {
+		sctx := context.WithoutCancel(ctx)
 		select {
-		case client.Send <- message:
+		case client.Send <- &bo.SendContext{
+			Ctx:  sctx,
+			Data: message,
+		}:
 		default:
 			// 队列满，主动踢出
 			m.log.WithContext(ctx).Warnf("User %s is full, kick out", userID)
@@ -153,19 +158,20 @@ func (m *Manager) writePump(ctx context.Context, client *Client) {
 
 	for {
 		select {
-		case message, ok := <-client.Send:
+		case sendBase, ok := <-client.Send:
+			ctx := sendBase.Ctx
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
 				m.log.WithContext(ctx).Errorf("userId=%s, client disconnected", client.UserID)
 				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			err := client.Conn.WriteMessage(websocket.TextMessage, message)
+			err := client.Conn.WriteMessage(websocket.TextMessage, sendBase.Data)
 			if err != nil {
 				m.log.WithContext(ctx).Errorf("userId=%s, Write message error: %v", client.UserID, err)
 				return
 			}
-			m.log.WithContext(ctx).Debugf("userId=%s, Sent to %s", client.UserID, string(message))
+			m.log.WithContext(ctx).Debugf("userId=%s, Sent to %s", client.UserID, string(sendBase.Data))
 		case <-ticker.C:
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
