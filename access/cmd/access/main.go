@@ -71,7 +71,12 @@ func main() {
 	if tracingConf.Exporter == "jaeger" {
 		endpoint = tracingConf.Jaeger.Endpoint
 	}
-	monitoring.InitTraceProvider(endpoint, bc.Monitoring.ServiceName, tracingConf.Exporter, tracingConf.Sampler)
+	if err := monitoring.InitTraceProvider(endpoint, bc.Monitoring.ServiceName, tracingConf.Exporter, tracingConf.Sampler); err != nil {
+		panic(err)
+	}
+	if err := monitoring.InitPrometheus(bc.Monitoring.ServiceName); err != nil {
+		panic(err)
+	}
 	loggingConf := bc.Monitoring.Logging
 	// 初始化zap日志器
 	zapLogger := monitoring.InitLogger(&monitoring.LoggingConfig{

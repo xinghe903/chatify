@@ -4,8 +4,10 @@ import (
 	v1 "api/logic/v1"
 	"logic/internal/conf"
 	"logic/internal/service"
+	"pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/metrics"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -18,6 +20,10 @@ func NewGRPCServer(cb *conf.Bootstrap, svc *service.LogicService, logger log.Log
 		grpc.Middleware(
 			recovery.Recovery(),
 			tracing.Server(),
+			metrics.Server(
+				metrics.WithSeconds(monitoring.MetricSeconds),
+				metrics.WithRequests(monitoring.MetricRequests),
+			),
 			// middleware.ErrorEncoder(),
 		),
 	}

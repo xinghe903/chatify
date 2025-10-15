@@ -1,10 +1,9 @@
 package server
 
 import (
-	v1 "api/logic/v1"
-	"logic/internal/conf"
-	"logic/internal/service"
 	"pkg/monitoring"
+	"push/internal/conf"
+	"push/internal/service"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"
@@ -15,7 +14,7 @@ import (
 )
 
 // NewHTTPServer new an HTTP server.
-func NewHTTPServer(cb *conf.Bootstrap, svc *service.LogicService, logger log.Logger) *http.Server {
+func NewHTTPServer(cb *conf.Bootstrap, svc *service.PushService, logger log.Logger) *http.Server {
 	c := cb.Server
 	var opts = []http.ServerOption{
 		http.Middleware(
@@ -38,6 +37,5 @@ func NewHTTPServer(cb *conf.Bootstrap, svc *service.LogicService, logger log.Log
 	}
 	srv := http.NewServer(opts...)
 	srv.Handle("/metrics", promhttp.Handler())
-	v1.RegisterLogicServiceHTTPServer(srv, svc)
 	return srv
 }

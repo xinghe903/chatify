@@ -15,7 +15,7 @@ data:
     read_timeout: 1s
     write_timeout: 1s
   etcd:
-    endpoints: ["127.0.0.1:12379"]
+    endpoints: ["127.0.0.1:22379"]
     dial_timeout: 1s
     username: ""
     password: ""

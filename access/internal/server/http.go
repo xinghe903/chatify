@@ -4,11 +4,14 @@ import (
 	"access/internal/conf"
 	"access/internal/service"
 	basehttp "net/http"
+	"pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/metrics"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -20,6 +23,10 @@ func NewHTTPServer(cb *conf.Bootstrap, svc *service.AccessService, logger log.Lo
 		http.Middleware(
 			recovery.Recovery(),
 			tracing.Server(),
+			metrics.Server(
+				metrics.WithSeconds(monitoring.MetricSeconds),
+				metrics.WithRequests(monitoring.MetricRequests),
+			),
 		),
 	}
 	if c.Http.Network != "" {
@@ -32,6 +39,7 @@ func NewHTTPServer(cb *conf.Bootstrap, svc *service.AccessService, logger log.Lo
 		opts = append(opts, http.Timeout(c.Http.Timeout.AsDuration()))
 	}
 	srv := http.NewServer(opts...)
+	srv.Handle("/metrics", promhttp.Handler())
 	srv.HandleFunc("/chatify/access/v1/ws", func(w basehttp.ResponseWriter, r *basehttp.Request) {
 		// 正确获取操作名称和上下文
 		operation := r.RequestURI

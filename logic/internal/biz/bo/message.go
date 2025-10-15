@@ -91,3 +91,14 @@ func (m *Message) ToBaseMessage() *im_v1.BaseMessage {
 		TargetType:  im_v1.TargetType(m.TargetType),
 	}
 }
+
+// var MetricBizRequests otlpmetric.Int64Counter
+
+// initBiz := func() {
+// 	var err error
+// 	MetricBizRequests, err = metrics.DefaultRequestsCounter(monitoring.Meter, "biz_requests")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// }

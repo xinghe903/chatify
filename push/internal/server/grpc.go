@@ -2,10 +2,12 @@ package server
 
 import (
 	v1 "api/push/v1"
+	"pkg/monitoring"
 	"push/internal/conf"
 	"push/internal/service"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/metrics"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -18,6 +20,10 @@ func NewGRPCServer(cb *conf.Bootstrap, svc *service.PushService, logger log.Logg
 		grpc.Middleware(
 			recovery.Recovery(),
 			tracing.Server(),
+			metrics.Server(
+				metrics.WithSeconds(monitoring.MetricSeconds),
+				metrics.WithRequests(monitoring.MetricRequests),
+			),
 		),
 	}
 	if c.Grpc.Network != "" {

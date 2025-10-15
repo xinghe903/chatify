@@ -14,6 +14,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
+	"github.com/go-kratos/kratos/v2/transport/http"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -33,7 +34,7 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
 }
 
-func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar) *kratos.App {
+func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, r registry.Registrar) *kratos.App {
 	return kratos.New(
 		// kratos.ID(id), // 服务ID 暂时用系统生成的，生产环境可以用kratos默认的hostname
 		kratos.Name(Name),
@@ -43,6 +44,7 @@ func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar) *kratos.Ap
 		kratos.Registrar(r),
 		kratos.Server(
 			gs,
+			hs,
 		),
 	)
 }
@@ -69,7 +71,12 @@ func main() {
 	if tracingConf.Exporter == "jaeger" {
 		endpoint = tracingConf.Jaeger.Endpoint
 	}
-	monitoring.InitTraceProvider(endpoint, bc.Monitoring.ServiceName, tracingConf.Exporter, tracingConf.Sampler)
+	if err := monitoring.InitTraceProvider(endpoint, bc.Monitoring.ServiceName, tracingConf.Exporter, tracingConf.Sampler); err != nil {
+		panic(err)
+	}
+	if err := monitoring.InitPrometheus(bc.Monitoring.ServiceName); err != nil {
+		panic(err)
+	}
 	loggingConf := bc.Monitoring.Logging
 	// 初始化zap日志器
 	zapLogger := monitoring.InitLogger(&monitoring.LoggingConfig{

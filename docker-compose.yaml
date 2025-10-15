@@ -92,8 +92,8 @@ services:
     image: registry.cn-hangzhou.aliyuncs.com/xinghe903/etcd:v3.5.18
     container_name: etcd-single
     ports:
-      - "12379:2379"  # 客户端通信
-      - "12380:2380"  # 节点间通信（即使单节点也建议暴露）
+      - "22379:2379"  # 客户端通信
+      - "22380:2380"  # 节点间通信（即使单节点也建议暴露）
     environment:
       - ETCDCTL_API=3
       - ETCD_NAME=etcd-single
