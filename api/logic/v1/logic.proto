@@ -3,6 +3,7 @@ syntax = "proto3";
 package logic.v1;
 
 import "im/v1/message.proto";
+import "google/api/annotations.proto";
 
 option go_package = "api/logic/v1;v1";
 
@@ -11,7 +12,12 @@ service LogicService {
   rpc ValidateAndProcessMessage(ChatInputRequest) returns (ChatInputResponse);
   
   // 系统主动推送（公告、通知）
-  rpc SendSystemPush(SystemPushRequest) returns (SystemPushResponse);
+  rpc SendSystemPush(SystemPushRequest) returns (SystemPushResponse) {
+    option (google.api.http) = {
+      post: "/chatify/logic/v1/sendSystemPush",
+      body: "*",
+    };
+  };
 }
 
 message ChatInputRequest {
@@ -47,6 +53,7 @@ message SystemPushResponse {
   enum Code {
     OK = 0;
     TOO_MANY_TARGET = 1;
+    SERVER_ERROR = 2;
   }
   Code code = 1;
   string message = 2;

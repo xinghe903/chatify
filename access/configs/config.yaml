@@ -1,0 +1,39 @@
+server:
+  http:
+    addr: 0.0.0.0:8081
+    timeout: 1s
+  grpc:
+    addr: 0.0.0.0:9091
+    timeout: 1s
+data:
+  database:
+    driver: mysql
+    source: myuser:mypassword@tcp(localhost:13306)/chatify?parseTime=true
+  redis:
+    network: tcp
+    addr: localhost:16379
+    read_timeout: 1s
+    write_timeout: 1s
+  etcd:
+    endpoints: ["127.0.0.1:22379"]
+    dial_timeout: 1s
+    username: ""
+    password: ""
+# 监控配置统一放在monitoring下
+monitoring:
+  service_name: access-service
+  tracing:
+    sampler: 1.0
+    exporter: jaeger
+    jaeger:
+      endpoint: ip:port
+  logging:
+    level: debug
+    format: json
+    output: ./log/biz.log
+  metrics:
+    prometheus:
+      endpoint: :2112
+      timeout: 10s
+
+

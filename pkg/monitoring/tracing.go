@@ -43,10 +43,10 @@ func newExporter(ctx context.Context, endpoint string) (trace.SpanExporter, erro
 // service: 服务名称
 // exporter: exporter, 如jaeger, zipkin
 // ratio: 采样率
-func InitTraceProvider(endpoint, service, exporter string, ratio float64) {
+func InitTraceProvider(endpoint, service, exporter string, ratio float64) error {
 	exp, err := newExporter(context.Background(), endpoint)
 	if err != nil {
-		return
+		return err
 	}
 	tp := tracesdk.NewTracerProvider(
 		// 将基于父span的采样率设置为100%
@@ -63,4 +63,5 @@ func InitTraceProvider(endpoint, service, exporter string, ratio float64) {
 	fmt.Printf("init otel success\n")
 	otel.SetTextMapPropagator(&propagation.TraceContext{})
 	otel.SetTracerProvider(tp)
+	return nil
 }
