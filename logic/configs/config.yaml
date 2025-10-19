@@ -1,9 +1,9 @@
 server:
   http:
-    addr: 0.0.0.0:8084
+    addr: 0.0.0.0:8034
     timeout: 1s
   grpc:
-    addr: 0.0.0.0:9094
+    addr: 0.0.0.0:9034
     timeout: 1s
   secret: "123456"  # 内部系统secret固定
 data:
@@ -33,11 +33,11 @@ monitoring:
     sampler: 1.0
     exporter: jaeger
     jaeger:
-      endpoint: http://127.0.0.1:14268/api/traces
+      endpoint: ip:port
   logging:
     level: debug
     format: json
-    output: stdout
+    output: ./log/biz.log
   metrics:
     prometheus:
       endpoint: :2112
