@@ -138,6 +138,66 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/logic.v1.SystemPushResponse'
+    /chatify/offline/v1/AcknowledgeMessages:
+        post:
+            tags:
+                - OfflineService
+            description: 确认一批消息已送达（由 Push 调用）
+            operationId: OfflineService_AcknowledgeMessages
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/offline.v1.AckRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/offline.v1.AckResponse'
+    /chatify/offline/v1/ArchiveMessages:
+        post:
+            tags:
+                - OfflineService
+            description: 归档一批离线消息
+            operationId: OfflineService_ArchiveMessages
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/offline.v1.ArchiveRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/offline.v1.ArchiveResponse'
+    /chatify/offline/v1/RetrieveOfflineMessages:
+        get:
+            tags:
+                - OfflineService
+            description: 主动拉取离线消息（用户上线时）
+            operationId: OfflineService_RetrieveOfflineMessages
+            parameters:
+                - name: userId
+                  in: query
+                  schema:
+                    type: string
+                - name: lastMessageId
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/offline.v1.RetrieveResponse'
 components:
     schemas:
         auth.v1.LoginRequest:
@@ -233,6 +293,31 @@ components:
                     type: string
                 expiresAt:
                     type: string
+        im.v1.BaseMessage:
+            type: object
+            properties:
+                msgId:
+                    type: string
+                messageType:
+                    type: integer
+                    format: enum
+                fromUserId:
+                    type: string
+                targetType:
+                    type: integer
+                    format: enum
+                toUserId:
+                    type: string
+                content:
+                    type: string
+                    format: bytes
+                timestamp:
+                    type: string
+                expireTime:
+                    type: string
+                contentId:
+                    type: string
+            description: 基础消息结构
         logic.v1.SystemPushRequest:
             type: object
             properties:
@@ -262,7 +347,52 @@ components:
                     format: enum
                 message:
                     type: string
+        offline.v1.AckRequest:
+            type: object
+            properties:
+                userId:
+                    type: string
+                messageIds:
+                    type: array
+                    items:
+                        type: string
+        offline.v1.AckResponse:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    format: enum
+                message:
+                    type: string
+        offline.v1.ArchiveRequest:
+            type: object
+            properties:
+                taskId:
+                    type: string
+                message:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/im.v1.BaseMessage'
+        offline.v1.ArchiveResponse:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    format: enum
+                message:
+                    type: string
+        offline.v1.RetrieveResponse:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    format: enum
+                message:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/im.v1.BaseMessage'
 tags:
     - name: AuthService
       description: 认证服务
     - name: LogicService
+    - name: OfflineService
