@@ -36,18 +36,20 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 		return nil, nil, err
 	}
 	discovery := data.NewDiscovery(client)
-	accessNodeManager, cleanup2, err := data.NewAccessNodeManager(discovery, dataData, logger)
+	accessNodeManager, cleanup2, err := data.NewAccessNodeManager(bootstrap, discovery, dataData, logger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	push := biz.NewPush(logger, sessionRepo, messageRepo, accessNodeManager)
+	offlineRepo, cleanup3 := data.NewOfflineClient(bootstrap, logger, discovery)
+	push := biz.NewPush(logger, sessionRepo, messageRepo, accessNodeManager, offlineRepo)
 	pushService := service.NewPushService(push, logger)
 	grpcServer := server.NewGRPCServer(bootstrap, pushService, logger)
 	httpServer := server.NewHTTPServer(bootstrap, pushService, logger)
 	registrar := data.NewRegistry(client)
 	app := newApp(logger, grpcServer, httpServer, registrar)
 	return app, func() {
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

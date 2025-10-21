@@ -43,6 +43,10 @@ type MessageRepo interface {
 	UpdateMessageStatus(ctx context.Context, messages []*bo.Message) error
 }
 
+type OfflineRepo interface {
+	ArchiveMessages(ctx context.Context, taskId string, messages []*bo.Message) error
+}
+
 type AccessNodeManager interface {
 	SendToUser(ctx context.Context, connectId string, messages []*im_v1.BaseMessage) ([]string, error)
 	Close() error
@@ -53,15 +57,22 @@ type Push struct {
 	session     SessionRepo
 	messageRepo MessageRepo
 	manager     AccessNodeManager
+	offlineRepo OfflineRepo
 }
 
 // NewPush
-func NewPush(logger log.Logger, session SessionRepo, message MessageRepo, manager AccessNodeManager) *Push {
+func NewPush(logger log.Logger,
+	session SessionRepo,
+	message MessageRepo,
+	manager AccessNodeManager,
+	offline OfflineRepo,
+) *Push {
 	return &Push{
 		log:         log.NewHelper(logger),
 		session:     session,
 		messageRepo: message,
 		manager:     manager,
+		offlineRepo: offline,
 	}
 }
 
@@ -81,6 +92,10 @@ func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.
 	accessMessageGroups := p.groupMessageByConnectId(ctx, messages, msgSendMask)
 	// 发送消息, 并记录发送成功消息结果
 	successMsgIDs := p.sendMessageToAccessNode(ctx, accessMessageGroups, msgSendMask)
+	// 归档离线消息
+	if err := p.archiveOfflineMessages(ctx, taskID, msgSendMask, messages); err != nil {
+		return err
+	}
 	// 更新消息状态
 	if err := p.updateMessageStatus(ctx, msgSendMask); err != nil {
 		return err
@@ -182,6 +197,49 @@ func (p *Push) sendMessageToAccessNode(ctx context.Context,
 		successMsgIDs = append(successMsgIDs, successIds...)
 	}
 	return successMsgIDs
+}
+
+func (p *Push) archiveOfflineMessages(ctx context.Context,
+	taskID string,
+	msgSendMask map[string]error,
+	messages []*im_v1.BaseMessage,
+) error {
+	id2Msg := make(map[string]*im_v1.BaseMessage, len(messages))
+	for _, msg := range messages {
+		id2Msg[msg.MsgId] = msg
+	}
+	offlineMsgIds := make([]string, 0, len(messages))
+	for id, e := range msgSendMask {
+		if errors.Is(e, ErrPendingUserOffline) {
+			offlineMsgIds = append(offlineMsgIds, id)
+		}
+	}
+	if len(offlineMsgIds) == 0 {
+		return nil
+	}
+	offlineMsg := make([]*bo.Message, 0, len(offlineMsgIds))
+	for _, id := range offlineMsgIds {
+		msg := id2Msg[id]
+		offlineMsg = append(offlineMsg, &bo.Message{
+			MsgID:       id,
+			Content:     msg.Content,
+			ContentID:   msg.ContentId,
+			TaskID:      taskID,
+			Timestamp:   msg.Timestamp,
+			ExpireTime:  msg.ExpireTime,
+			ToUserID:    msg.ToUserId,
+			FromUserID:  msg.FromUserId,
+			Status:      bo.MessageStatusPending,
+			Description: ErrPendingUserOffline.Error(),
+			MessageType: int32(msg.MessageType),
+			TargetType:  int32(msg.TargetType),
+		})
+	}
+	if err := p.offlineRepo.ArchiveMessages(ctx, taskID, offlineMsg); err != nil {
+		p.log.WithContext(ctx).Errorf("failed to archive offline messages. err=%s", err.Error())
+		return err
+	}
+	return nil
 }
 
 // updateMessageStatus 更新消息状态

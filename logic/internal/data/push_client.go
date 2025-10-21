@@ -25,7 +25,7 @@ type PushClient struct {
 
 // NewPushServiceClient 创建Push服务gRPC客户端
 func NewPushServiceClient(c *conf.Bootstrap, logger log.Logger, r registry.Discovery) (biz.PushRepo, func()) {
-	cfg := c.PushClient
+	cfg := c.Client.PushClient
 	conn, err := grpc.DialInsecure(
 		context.Background(),
 		grpc.WithEndpoint(fmt.Sprintf("discovery:///%s", cfg.Addr)),

@@ -36,7 +36,7 @@ type Message struct {
 	ExpireTime  int64         `json:"expire_time" gorm:"index:idx_expire_time"`
 	ContentID   string        `json:"content_id" gorm:"index:idx_content_id"`
 	TaskID      string        `json:"task_id" gorm:"index:idx_task_id"`
-	Status      MessageStatus `json:"status"`
+	Status      MessageStatus `json:"status" gorm:"type:varchar(20);index:idx_status"`
 	Description string        `json:"description"`
 }
 

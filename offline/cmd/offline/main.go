@@ -3,14 +3,14 @@ package main
 import (
 	"flag"
 	"os"
+	"pkg/monitoring"
 
-	"offline-message/internal/conf"
+	"offline/internal/conf"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
@@ -21,7 +21,7 @@ import (
 // go build -ldflags "-X main.Version=x.y.z"
 var (
 	// Name is the name of the compiled software.
-	Name string
+	Name string = "offline"
 	// Version is the version of the compiled software.
 	Version string
 	// flagconf is the config flag.
@@ -36,7 +36,7 @@ func init() {
 
 func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, r registry.Registrar) *kratos.App {
 	return kratos.New(
-		kratos.ID(id),
+		// kratos.ID(id),
 		kratos.Name(Name),
 		kratos.Version(Version),
 		kratos.Metadata(map[string]string{}),
@@ -51,15 +51,6 @@ func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server, r registry.Regi
 
 func main() {
 	flag.Parse()
-	logger := log.With(log.NewStdLogger(os.Stdout),
-		"ts", log.DefaultTimestamp,
-		"caller", log.DefaultCaller,
-		"service.id", id,
-		"service.name", Name,
-		"service.version", Version,
-		"trace.id", tracing.TraceID(),
-		"span.id", tracing.SpanID(),
-	)
 	c := config.New(
 		config.WithSource(
 			file.NewSource(flagconf),
@@ -75,8 +66,25 @@ func main() {
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
 	}
-
-	app, cleanup, err := wireApp(&bc, logger)
+	tracingConf := bc.Monitoring.Tracing
+	var endpoint string
+	if tracingConf.Exporter == "jaeger" {
+		endpoint = tracingConf.Jaeger.Endpoint
+	}
+	if err := monitoring.InitTraceProvider(endpoint, bc.Monitoring.ServiceName, tracingConf.Exporter, tracingConf.Sampler); err != nil {
+		panic(err)
+	}
+	if err := monitoring.InitPrometheus(bc.Monitoring.ServiceName); err != nil {
+		panic(err)
+	}
+	loggingConf := bc.Monitoring.Logging
+	// 初始化zap日志器
+	zapLogger := monitoring.InitLogger(&monitoring.LoggingConfig{
+		Format: loggingConf.Format,
+		Level:  loggingConf.Level,
+		Output: loggingConf.Output,
+	})
+	app, cleanup, err := wireApp(&bc, zapLogger)
 	if err != nil {
 		panic(err)
 	}

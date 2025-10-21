@@ -3,10 +3,12 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"push/internal/biz"
 	"push/internal/biz/bo"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -41,6 +43,11 @@ func (s *sessionRepo) SetSession(ctx context.Context, session *bo.Session) error
 func (s *sessionRepo) GetSession(ctx context.Context, uid string) (*bo.Session, error) {
 	sessionJson, err := s.data.redisClient.Get(ctx, SessionKeyPrefix+uid).Result()
 	if err != nil {
+		s.log.WithContext(ctx).Debugf("get session is err=%s", err.Error())
+		if errors.Is(err, redis.Nil) {
+			s.log.WithContext(ctx).Debugf("get session is empty")
+			return nil, nil
+		}
 		return nil, err
 	}
 	var session bo.Session

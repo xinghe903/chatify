@@ -20,11 +20,11 @@ data:
     dial_timeout: 1s
     username: ""
     password: ""
-
-# Push服务配置
-push_client:
-  addr: push
-  timeout: 5s
+client:
+  # Push服务配置
+  push_client:
+    addr: push
+    timeout: 5s
 
 # 监控配置统一放在monitoring下
 monitoring:
@@ -33,11 +33,11 @@ monitoring:
     sampler: 1.0
     exporter: jaeger
     jaeger:
-      endpoint: ip:port
+      endpoint: 172.26.238.249:32750
   logging:
     level: debug
     format: json
-    output: ./log/biz.log
+    output: stdout
   metrics:
     prometheus:
       endpoint: :2112

@@ -1,5 +1,5 @@
 
--- wrk -t12 -c24 -d10s --script=param.lua --latency "http://ip:8034/chatify/logic/v1/sendSystemPush"
+-- wrk -t12 -c24 -d10s --script=param.lua --latency "http://localhost:8034/chatify/logic/v1/sendSystemPush"
 
 -- param.lua
 -- Base64 编码函数 (纯 Lua 实现)

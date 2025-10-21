@@ -8,7 +8,8 @@ import "google/protobuf/duration.proto";
 message Bootstrap {
   Server server = 1;
   Data data = 2;
-  Monitoring monitoring = 3;
+  Client client = 3;
+  Monitoring monitoring = 4;
 }
 
 message Server {
@@ -47,6 +48,22 @@ message Data {
   Redis redis = 2;
   Etcd etcd = 3;
 }
+
+message Client {
+  AccessClient access_client = 1;
+  OfflineClinet offline_client = 2;
+}
+
+message AccessClient {
+  string addr = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
+message OfflineClinet {
+  string addr = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
 
 message Monitoring {
   string service_name = 1;

@@ -25,6 +25,7 @@ var ProviderSet = wire.NewSet(
 	NewRegistry,
 	NewMessageRepo,
 	NewDiscovery,
+	NewOfflineClient,
 )
 
 // gormLogAdapter 是一个适配器，将Kratos的logger转换为GORM可用的logger

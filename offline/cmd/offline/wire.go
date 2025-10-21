@@ -6,11 +6,11 @@
 package main
 
 import (
-	"offline-message/internal/biz"
-	"offline-message/internal/conf"
-	"offline-message/internal/data"
-	"offline-message/internal/server"
-	"offline-message/internal/service"
+	"offline/internal/biz"
+	"offline/internal/conf"
+	"offline/internal/data"
+	"offline/internal/server"
+	"offline/internal/service"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"

@@ -1,20 +1,29 @@
 package server
 
 import (
-	v1 "offline-message/api/helloworld/v1"
-	"offline-message/internal/conf"
-	"offline-message/internal/service"
+	offline_v1 "api/offline/v1"
+	"offline/internal/conf"
+	"offline/internal/service"
+	"pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/metrics"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
+	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 )
 
 // NewGRPCServer new a gRPC server.
-func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, logger log.Logger) *grpc.Server {
+func NewGRPCServer(cb *conf.Bootstrap, offline *service.OfflineService, logger log.Logger) *grpc.Server {
+	c := cb.Server
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
+			tracing.Server(),
+			metrics.Server(
+				metrics.WithSeconds(monitoring.MetricSeconds),
+				metrics.WithRequests(monitoring.MetricRequests),
+			),
 		),
 	}
 	if c.Grpc.Network != "" {
@@ -27,6 +36,7 @@ func NewGRPCServer(c *conf.Server, greeter *service.GreeterService, logger log.L
 		opts = append(opts, grpc.Timeout(c.Grpc.Timeout.AsDuration()))
 	}
 	srv := grpc.NewServer(opts...)
-	v1.RegisterGreeterServer(srv, greeter)
+	// 注册离线消息服务
+	offline_v1.RegisterOfflineServiceServer(srv, offline)
 	return srv
 }

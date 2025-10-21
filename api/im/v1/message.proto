@@ -30,8 +30,8 @@ message BaseMessage {
   TargetType          target_type  = 4;     // 目标类型
   string     to_user_id      = 5;     // 接收者
   bytes               content      = 6;     // 消息内容（二进制）
-  int64               timestamp    = 7;     // 时间戳（单位: 秒 或 毫秒）
-  int64               expire_time  = 10;    // 过期时间戳
+  int64               timestamp    = 7;     // 时间戳（单位: 秒）
+  int64               expire_time  = 10;    // 过期时间戳（单位: 秒）
   string              content_id          = 11;   // 内容级别ID，用户聚合分析
 }
 

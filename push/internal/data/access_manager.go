@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"push/internal/biz"
+	"push/internal/conf"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,6 @@ type accessNodeManager struct {
 	conns    map[string]*ggrpc.ClientConn
 	// ctx      context.Context
 	cancel context.CancelCauseFunc
-
 	// 配置
 	// servicePrefix string
 	// redisKeyFmt   string
@@ -41,6 +41,7 @@ type accessNodeManager struct {
 
 // NewAccessNodeManager 创建新的管理器
 func NewAccessNodeManager(
+	c *conf.Bootstrap,
 	discovery registry.Discovery,
 	data *Data,
 	logger log.Logger,
@@ -63,7 +64,7 @@ func NewAccessNodeManager(
 		manager.Close()
 	}
 	// 启动服务发现监听
-	if err := manager.watchAccessNodes(ctx); err != nil {
+	if err := manager.watchAccessNodes(ctx, c.Client.AccessClient); err != nil {
 		manager.log.Errorf("Failed to watch access nodes: %v", err)
 		return nil, cleanup, fmt.Errorf("failed to watch access nodes: %w", err)
 	}
@@ -79,8 +80,8 @@ func NewAccessNodeManager(
 //	Key: /ms/access/{instance_id} → Value: {"addrs":["grpc://host:port"]}
 //
 // 因此我们监听服务名 "access"
-func (m *accessNodeManager) watchAccessNodes(ctx context.Context) error {
-	watcher, err := m.discovery.Watch(ctx, "access") // 服务名是 "access"
+func (m *accessNodeManager) watchAccessNodes(ctx context.Context, clientConf *conf.AccessClient) error {
+	watcher, err := m.discovery.Watch(ctx, clientConf.Addr) // 服务名是 "access"
 	if err != nil {
 		return err
 	}

@@ -1,23 +1,24 @@
 package bo
 
-import im_v1 "api/im/v1"
+const (
+	BatchArchiveSize int = 1000 // 批量归档消息大小最大限制
+)
 
 // 消息状态枚举
-// 定义了消息在推送过程中的状态
 type MessageStatus string
 
 const (
-	// MessageStatusPending 待发送 - 消息创建但未开始发送流程或发送失败
+	// MessageStatusPending 待处理
 	MessageStatusPending MessageStatus = "pending"
-	// MessageStatusSent 发送成功 - 消息已通过任一方式成功送达
-	MessageStatusSent MessageStatus = "sent"
+	// MessageStatusArchived 已归档
+	MessageStatusArchived MessageStatus = "archived"
+	// MessageStatusDelivered 已送达
+	MessageStatusDelivered MessageStatus = "delivered"
 )
 
-// Message 消息业务对象
+// OfflineMessage 离线消息业务对象
 // 用于在业务层(biz)和数据层(data)之间传递消息数据
-// 这是一个抽象层，避免在业务层直接操作数据层的实体
-
-type Message struct {
+type OfflineMessage struct {
 	ID          string        `json:"id"`
 	MsgID       string        `json:"msg_id"`
 	MessageType int32         `json:"message_type"`
@@ -33,14 +34,4 @@ type Message struct {
 	Description string        `json:"description"`
 	CreatedAt   int64         `json:"created_at"`
 	UpdatedAt   int64         `json:"updated_at"`
-}
-
-func (m *Message) ToBaseMessage() *im_v1.BaseMessage {
-	return &im_v1.BaseMessage{
-		MsgId:       m.MsgID,
-		MessageType: im_v1.MessageType(m.MessageType),
-		FromUserId:  m.FromUserID,
-		TargetType:  im_v1.TargetType(m.TargetType),
-		ToUserId:    m.ToUserID,
-	}
 }
