@@ -11,6 +11,7 @@ import (
 	"push/internal/conf"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -34,6 +35,7 @@ func NewOfflineClient(c *conf.Bootstrap, logger log.Logger, r registry.Discovery
 		grpc.WithDiscovery(r),
 		grpc.WithMiddleware(
 			tracing.Client(),
+			circuitbreaker.Client(),
 		),
 	)
 	if err != nil {
@@ -53,7 +55,7 @@ func NewOfflineClient(c *conf.Bootstrap, logger log.Logger, r registry.Discovery
 		client: client,
 		// conn:   conn,
 		sonyFlake: auth.NewSonyflake(),
-		log:       log.NewHelper(log.With(logger, "module", "offline-service-client")),
+		log:       log.NewHelper(logger),
 	}, cleanup
 }
 

@@ -28,7 +28,7 @@ type OfflineUsecase struct {
 func NewOfflineUsecase(messageRepo MessageRepo, logger log.Logger) *OfflineUsecase {
 	return &OfflineUsecase{
 		messageRepo: messageRepo,
-		log:         log.NewHelper(log.With(logger, "module", "offline-usecase")),
+		log:         log.NewHelper(logger),
 	}
 }
 

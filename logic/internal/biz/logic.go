@@ -82,7 +82,7 @@ func (l *Logic) SendSystemPush(ctx context.Context, req *v1.SystemPushRequest) (
 				Message: "System error",
 			}, errors.Join(errors.New("failed to generate message ID"), err)
 		}
-		message.MsgId += "msg" + message.MsgId
+		message.MsgId = "msg" + message.MsgId
 	}
 	var taskId string
 	if taskId, err = l.sonyFlake.GenerateBase62(); err != nil {

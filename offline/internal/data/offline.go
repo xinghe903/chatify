@@ -25,7 +25,7 @@ type OfflineMessageRepo struct {
 func NewOfflineMessageRepo(data *Data, logger log.Logger) biz.MessageRepo {
 	return &OfflineMessageRepo{
 		data:      data,
-		log:       log.NewHelper(log.With(logger, "module", "data/offline")),
+		log:       log.NewHelper(logger),
 		sonyFlake: auth.NewSonyflake(),
 	}
 }

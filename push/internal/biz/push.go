@@ -94,10 +94,12 @@ func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.
 	successMsgIDs := p.sendMessageToAccessNode(ctx, accessMessageGroups, msgSendMask)
 	// 归档离线消息
 	if err := p.archiveOfflineMessages(ctx, taskID, msgSendMask, messages); err != nil {
+		p.log.WithContext(ctx).Errorf("failed to archive offline messages. taskID=%s, error=%s", taskID, err.Error())
 		return err
 	}
 	// 更新消息状态
 	if err := p.updateMessageStatus(ctx, msgSendMask); err != nil {
+		p.log.WithContext(ctx).Errorf("failed to update message status. taskID=%s, error=%s", taskID, err.Error())
 		return err
 	}
 	p.log.WithContext(ctx).Debugf("PushToUser completed. taskID=%s, messageCount=%d, successCount=%d", taskID, len(messages), len(successMsgIDs))
@@ -236,7 +238,6 @@ func (p *Push) archiveOfflineMessages(ctx context.Context,
 		})
 	}
 	if err := p.offlineRepo.ArchiveMessages(ctx, taskID, offlineMsg); err != nil {
-		p.log.WithContext(ctx).Errorf("failed to archive offline messages. err=%s", err.Error())
 		return err
 	}
 	return nil
@@ -258,7 +259,6 @@ func (p *Push) updateMessageStatus(ctx context.Context, msgSendMask map[string]e
 		boMessages = append(boMessages, msg)
 	}
 	if err := p.messageRepo.UpdateMessageStatus(ctx, boMessages); err != nil {
-		p.log.WithContext(ctx).Errorf("failed to update message status. err=%s", err.Error())
 		return err
 	}
 	return nil

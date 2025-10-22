@@ -23,7 +23,7 @@ type OfflineService struct {
 func NewOfflineService(uc *biz.OfflineUsecase, logger log.Logger) *OfflineService {
 	return &OfflineService{
 		uc:  uc,
-		log: log.NewHelper(log.With(logger, "module", "service/offline")),
+		log: log.NewHelper(logger),
 	}
 }
 

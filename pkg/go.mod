@@ -18,6 +18,7 @@ require (
 	golang.org/x/crypto v0.43.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5
 	google.golang.org/grpc v1.75.0
+	gorm.io/gorm v1.31.0
 )
 
 require (

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"logic/internal/conf"
+	"pkg/model"
 	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
@@ -17,17 +17,6 @@ import (
 
 // ProviderSet is data providers.
 var ProviderSet = wire.NewSet(NewData, NewPushServiceClient, NewEtcdClient, NewRegistry, NewDiscovery)
-
-// gormLogAdapter 是一个适配器，将Kratos的logger转换为GORM可用的logger
-// 实现了gorm.io/gorm/logger.Writer接口
-type gormLogAdapter struct {
-	logger log.Logger
-}
-
-// Printf 实现gorm.io/gorm/logger.Writer接口的Printf方法
-func (l *gormLogAdapter) Printf(format string, args ...interface{}) {
-	l.logger.Log(log.LevelDebug, fmt.Sprintf(format, args...))
-}
 
 // Data 数据层主结构
 type Data struct {
@@ -76,26 +65,9 @@ func initMySQLClient(c *conf.Data, logg log.Logger) (*gorm.DB, error) {
 		// 默认配置（作为备选）
 		dsn = "root:password@tcp(localhost:3306)/auth?charset=utf8mb4&parseTime=True&loc=Local"
 	}
-
-	// 使用默认的GORM日志级别（Info级别）
-
-	// 创建GORM日志适配器
-	logAdapter := &gormLogAdapter{logger: logg}
-
-	// 创建GORM配置
-	dbLogger := logger.New(
-		logAdapter,
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logger.Info,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  true,
-		},
-	)
-
 	// 连接MySQL
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: dbLogger,
+		Logger: model.NewKratosGormLogger(log.NewHelper(logg)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to mysql: %w", err)

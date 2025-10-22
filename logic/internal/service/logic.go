@@ -18,7 +18,7 @@ type LogicService struct {
 
 // NewLogicService new a greeter service.
 func NewLogicService(uc *biz.Logic, logger log.Logger) *LogicService {
-	return &LogicService{uc: uc, log: log.NewHelper(log.With(logger, "module", "logic/service"))}
+	return &LogicService{uc: uc, log: log.NewHelper(logger)}
 }
 
 // SendSystemPush 实现系统推送接口

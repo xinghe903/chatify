@@ -84,7 +84,7 @@ func main() {
 		Level:  loggingConf.Level,
 		Output: loggingConf.Output,
 	})
-	app, cleanup, err := wireApp(&bc, zapLogger)
+	app, cleanup, err := wireApp(&bc, log.With(zapLogger, "service.name", bc.Monitoring.ServiceName))
 	if err != nil {
 		panic(err)
 	}

@@ -11,6 +11,7 @@ import (
 	"pkg/auth"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -32,6 +33,7 @@ func NewPushServiceClient(c *conf.Bootstrap, logger log.Logger, r registry.Disco
 		grpc.WithDiscovery(r),
 		grpc.WithMiddleware(
 			tracing.Client(),
+			circuitbreaker.Client(),
 		),
 	)
 	if err != nil {
@@ -51,12 +53,12 @@ func NewPushServiceClient(c *conf.Bootstrap, logger log.Logger, r registry.Disco
 		client: client,
 		// conn:   conn,
 		sonyFlake: auth.NewSonyflake(),
-		log:       log.NewHelper(log.With(logger, "module", "push-service-client")),
+		log:       log.NewHelper(logger),
 	}, cleanup
 }
 
 func (p *PushClient) SendMessage(ctx context.Context, taskId string, messages []*bo.Message) error {
-	p.log.WithContext(ctx).Debugf("Sending message to push service msg len=%s", len(messages))
+	p.log.WithContext(ctx).Debugf("Sending message to push service msg len=%d", len(messages))
 	// 转换为proto定义的BaseMessage
 	baseMessages := make([]*im_v1.BaseMessage, 0, len(messages))
 	for _, message := range messages {

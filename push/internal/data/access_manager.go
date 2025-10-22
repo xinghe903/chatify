@@ -51,7 +51,7 @@ func NewAccessNodeManager(
 	manager := &accessNodeManager{
 		discovery: discovery,
 		data:      data,
-		log:       log.NewHelper(log.With(logger, "module", "access_node_manager")),
+		log:       log.NewHelper(logger),
 		accesss:   make(map[string]v1.AccessServiceClient),
 		conns:     make(map[string]*ggrpc.ClientConn),
 		// ctx:           ctx,
@@ -152,6 +152,7 @@ func (m *accessNodeManager) updateNodesFromInstances(ctx context.Context, watche
 					recovery.Recovery(),
 					circuitbreaker.Client(),
 					tracing.Client(),
+					circuitbreaker.Client(),
 				),
 			)
 			if err != nil {

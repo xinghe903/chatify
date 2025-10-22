@@ -10,6 +10,8 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 )
 
+const batchInsertCount = 100 // 每次插入数据长度
+
 var _ biz.MessageRepo = (*messageRepo)(nil)
 
 // messageRepo 消息仓库实现
@@ -23,7 +25,7 @@ type messageRepo struct {
 func NewMessageRepo(data *Data, logger log.Logger) biz.MessageRepo {
 	return &messageRepo{
 		data:      data,
-		log:       log.NewHelper(log.With(logger, "module", "data/message")),
+		log:       log.NewHelper(logger),
 		sonyFlake: auth.NewSonyflake(),
 	}
 }
@@ -58,33 +60,8 @@ func (r *messageRepo) SaveMessages(ctx context.Context, boMessages []*bo.Message
 		poMessages = append(poMessages, poMsg)
 	}
 
-	// 使用事务批量保存消息
-	tx := r.data.db.WithContext(ctx).Begin()
-	if tx.Error != nil {
-		r.log.WithContext(ctx).Errorf("failed to begin transaction. err=%s", tx.Error.Error())
-		return tx.Error
-	}
-
-	// 分批保存消息，避免单次插入过多数据
-	const batchSize = 1000
-	for i := 0; i < len(poMessages); i += batchSize {
-		end := i + batchSize
-		if end > len(poMessages) {
-			end = len(poMessages)
-		}
-
-		batch := poMessages[i:end]
-		if err := tx.Create(batch).Error; err != nil {
-			tx.Rollback()
-			r.log.WithContext(ctx).Errorf("failed to save messages. err=%s", err.Error())
-			return err
-		}
-	}
-
-	// 提交事务
-	if err := tx.Commit().Error; err != nil {
-		r.log.WithContext(ctx).Errorf("failed to commit transaction. err=%s", err.Error())
-		tx.Rollback()
+	if err := r.data.db.WithContext(ctx).CreateInBatches(poMessages, batchInsertCount).Error; err != nil {
+		r.log.WithContext(ctx).Errorf("failed to save messages. err=%s", err.Error())
 		return err
 	}
 

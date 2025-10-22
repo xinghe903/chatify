@@ -17,6 +17,7 @@ type SessionRepo interface {
 	BatchClearSession(ctx context.Context, uids []string) error
 	GetSession(ctx context.Context, uid string) (*bo.Session, error)
 	ClearSession(ctx context.Context, uid string) error
+	RenewSession(ctx context.Context, uid string) error
 }
 
 // Client 代表一个 WebSocket 客户端连接
@@ -90,7 +91,9 @@ func (m *Manager) StopClient(ctx context.Context, client *Client) {
 	m.log.WithContext(ctx).Debugf("User %s disconnected", client.UserID)
 	client.Conn.Close()
 	delete(m.clients, client.UserID)
-	m.session.ClearSession(ctx, client.UserID)
+	if err := m.session.ClearSession(context.TODO(), client.UserID); err != nil {
+		m.log.WithContext(ctx).Errorf("Clear session error: %v", err)
+	}
 }
 
 // SendToUser 向指定用户发送消息
@@ -132,10 +135,14 @@ func (m *Manager) readPump(ctx context.Context, client *Client) {
 	})
 
 	for {
-		_, message, err := client.Conn.ReadMessage()
+		msgType, message, err := client.Conn.ReadMessage()
 		if err != nil {
 			m.log.WithContext(ctx).Warnf("Read message error: %v", err)
 			break
+		}
+		if msgType == websocket.CloseMessage {
+			m.log.WithContext(ctx).Infof("User %s disconnected", client.UserID)
+			return
 		}
 		select {
 		case <-ctx.Done():
@@ -177,6 +184,9 @@ func (m *Manager) writePump(ctx context.Context, client *Client) {
 			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				m.log.WithContext(ctx).Errorf("userId=%s, Write ping error: %v", client.UserID, err)
 				return
+			}
+			if err := m.session.RenewSession(ctx, client.UserID); err != nil {
+				m.log.WithContext(ctx).Errorf("userId=%s, Renew session error: %v", client.UserID, err)
 			}
 			m.log.WithContext(ctx).Debugf("userId=%s, Sent ping", client.UserID)
 		}

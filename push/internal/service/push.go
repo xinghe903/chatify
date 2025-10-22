@@ -21,7 +21,7 @@ type PushService struct {
 func NewPushService(uc *biz.Push, logger log.Logger) *PushService {
 	return &PushService{
 		uc:  uc,
-		log: log.NewHelper(log.With(logger, "module", "service/push")),
+		log: log.NewHelper(logger),
 	}
 }
 
