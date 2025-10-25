@@ -26,6 +26,7 @@ var ProviderSet = wire.NewSet(
 	NewMessageRepo,
 	NewDiscovery,
 	NewOfflineClient,
+	NewKafkaConsumer,
 )
 
 // Data 数据层主结构
@@ -47,7 +48,6 @@ func NewData(cb *conf.Bootstrap, logger log.Logger) (*Data, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
 	cleanup := func() {
 		if redisClient != nil {
 			if err := redisClient.Close(); err != nil {

@@ -15,10 +15,16 @@ data:
     read_timeout: 1s
     write_timeout: 1s
   etcd:
-    endpoints: ["127.0.0.1:22379"]
+    endpoints: ["localhost:22379"]
     dial_timeout: 1s
     username: ""
     password: ""
+  kafka:
+    brokers: ["localhost:19092"]
+    group_id: chatify
+    user_state: user_state
+    retry_count: 3
+    timeout: 3s
 client:
   access_client: 
     addr: "access"
@@ -37,7 +43,7 @@ monitoring:
   logging:
     level: debug
     format: json
-    output: ./log/biz.log
+    output: stdout
   metrics:
     prometheus:
       endpoint: :2112

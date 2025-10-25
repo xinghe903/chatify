@@ -20,6 +20,11 @@ type SessionRepo interface {
 	RenewSession(ctx context.Context, uid string) error
 }
 
+type MqProducer interface {
+	SendMessage(ctx context.Context, topic string, message *bo.UserStateMessage) error
+	Close() error
+}
+
 // Client 代表一个 WebSocket 客户端连接
 type Client struct {
 	Conn           *websocket.Conn
@@ -34,18 +39,20 @@ type Client struct {
 
 // Manager 管理所有客户端连接
 type Manager struct {
-	clients map[string]*Client
-	mu      sync.RWMutex
-	log     *log.Helper
-	session SessionRepo
+	clients    map[string]*Client
+	mu         sync.RWMutex
+	log        *log.Helper
+	session    SessionRepo
+	mqProducer MqProducer
 }
 
 // NewManager 创建新的连接管理器
-func NewManager(logger log.Logger, session SessionRepo) (*Manager, func()) {
+func NewManager(logger log.Logger, session SessionRepo, producer MqProducer) (*Manager, func()) {
 	manager := &Manager{
-		clients: make(map[string]*Client),
-		log:     log.NewHelper(logger),
-		session: session,
+		clients:    make(map[string]*Client),
+		log:        log.NewHelper(logger),
+		session:    session,
+		mqProducer: producer,
 	}
 	cleanup := func() {
 		manager.log.Info("closing the manager resources")
@@ -71,6 +78,23 @@ func (m *Manager) StartClient(ctx context.Context, client *Client) {
 		client.Conn.Close()
 		return
 	}
+
+	// 发送用户上线消息到Kafka
+	if m.mqProducer != nil {
+		userStateMsg := &bo.UserStateMessage{
+			UserID:         client.UserID,
+			UserName:       client.UserName,
+			State:          bo.UserStateOnline,
+			ConnectionTime: client.ConnectionTime,
+			ConnectionId:   client.ConnectionId,
+		}
+
+		err := m.mqProducer.SendMessage(ctx, "user_state", userStateMsg)
+		if err != nil {
+			m.log.WithContext(ctx).Errorf("Send user online message to kafka error: %v", err)
+		}
+	}
+
 	var rctx, wctx context.Context
 	rctx, client.readCtxCancel = context.WithCancelCause(ctx)
 	wctx, client.writeCtxCancel = context.WithCancelCause(ctx)
@@ -89,11 +113,27 @@ func (m *Manager) StopClient(ctx context.Context, client *Client) {
 		return
 	}
 	m.log.WithContext(ctx).Debugf("User %s disconnected", client.UserID)
-	client.Conn.Close()
 	delete(m.clients, client.UserID)
-	if err := m.session.ClearSession(context.TODO(), client.UserID); err != nil {
+	if err := m.session.ClearSession(ctx, client.UserID); err != nil {
 		m.log.WithContext(ctx).Errorf("Clear session error: %v", err)
 	}
+	// 发送用户下线消息到Kafka
+	if m.mqProducer != nil {
+		userStateMsg := &bo.UserStateMessage{
+			UserID:         client.UserID,
+			UserName:       client.UserName,
+			State:          bo.UserStateOffline,
+			ConnectionTime: client.ConnectionTime,
+			ConnectionId:   client.ConnectionId,
+		}
+		err := m.mqProducer.SendMessage(ctx, "user_state", userStateMsg)
+		if err != nil {
+			m.log.WithContext(ctx).Errorf("Send user offline message to kafka error: %v", err)
+		}
+	}
+	client.Conn.Close()
+	client.writeCtxCancel(errors.New("write unregister cause"))
+	client.readCtxCancel(errors.New("read unregister cause"))
 }
 
 // SendToUser 向指定用户发送消息
@@ -124,7 +164,6 @@ func (m *Manager) Count() int {
 func (m *Manager) readPump(ctx context.Context, client *Client) {
 	defer func() {
 		m.StopClient(ctx, client)
-		client.readCtxCancel(errors.New("read unregister cause"))
 	}()
 	// 无法写入消息，则认为改连接已经断开
 	client.Conn.SetReadLimit(512 << 10) // 512KB
@@ -160,7 +199,6 @@ func (m *Manager) writePump(ctx context.Context, client *Client) {
 	defer func() {
 		ticker.Stop()
 		m.StopClient(ctx, client)
-		client.writeCtxCancel(errors.New("write unregister cause"))
 	}()
 
 	for {
@@ -189,6 +227,10 @@ func (m *Manager) writePump(ctx context.Context, client *Client) {
 				m.log.WithContext(ctx).Errorf("userId=%s, Renew session error: %v", client.UserID, err)
 			}
 			m.log.WithContext(ctx).Debugf("userId=%s, Sent ping", client.UserID)
+		case <-ctx.Done():
+			m.log.WithContext(ctx).Infof("write context done")
+			return
 		}
+
 	}
 }

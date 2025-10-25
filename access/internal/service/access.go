@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/metadata"
 	"github.com/gorilla/websocket"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -30,20 +32,17 @@ type AccessService struct {
 	v1.UnimplementedAccessServiceServer
 	log         *log.Helper
 	connManager *biz.Manager
-	consumer    *biz.Consumer
 	svrInstance *conf.ServerInstance
 }
 
 func NewAccessService(
 	logger log.Logger,
-	consumer *biz.Consumer,
 	manager *biz.Manager,
 	svrInstance *conf.ServerInstance,
 ) *AccessService {
 	svc := &AccessService{
 		log:         log.NewHelper(logger),
 		connManager: manager,
-		consumer:    consumer,
 		svrInstance: svrInstance,
 	}
 	return svc
@@ -57,6 +56,8 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.log.WithContext(ctx).Errorf("WebSocket upgrade error: %v", err)
 		return
 	}
+	ctx, cancel := withoutTimeout(ctx)
+	defer cancel(errors.New("root disconnected"))
 	ctx = auth.NewContext(ctx, r.Header.Get(string(auth.USER_ID)), r.Header.Get(string(auth.USER_NAME)))
 	client := &biz.Client{
 		Conn:           conn,
@@ -69,6 +70,19 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.log.WithContext(ctx).Debugf("Client connected: %s, serviceId: %s", conn.RemoteAddr(), s.svrInstance.Id)
 	s.log.WithContext(ctx).Debugf("Client userId: %s, username: %s", client.UserID, auth.GetUserName(ctx))
 	s.connManager.StartClient(ctx, client)
+}
+
+func withoutTimeout(parent context.Context) (context.Context, context.CancelCauseFunc) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	// 复制 metadata
+	if md, ok := metadata.FromServerContext(parent); ok {
+		ctx = metadata.NewServerContext(ctx, md)
+	}
+	// 复制 tracing
+	if sc := trace.SpanFromContext(parent).SpanContext(); sc.IsValid() {
+		ctx = trace.ContextWithSpanContext(ctx, sc)
+	}
+	return ctx, cancel
 }
 
 // func (s *AccessService) dispatch(message *v1.ClientToAccessMessage) {

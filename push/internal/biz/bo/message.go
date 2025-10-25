@@ -35,6 +35,20 @@ type Message struct {
 	UpdatedAt   int64         `json:"updated_at"`
 }
 
+func NewMessage(msg *im_v1.BaseMessage) *Message {
+	return &Message{
+		MsgID:       msg.MsgId,
+		MessageType: int32(msg.MessageType),
+		FromUserID:  msg.FromUserId,
+		TargetType:  int32(msg.TargetType),
+		ToUserID:    msg.ToUserId,
+		Content:     msg.Content,
+		Timestamp:   msg.Timestamp,
+		ExpireTime:  msg.ExpireTime,
+		ContentID:   msg.ContentId,
+	}
+}
+
 func (m *Message) ToBaseMessage() *im_v1.BaseMessage {
 	return &im_v1.BaseMessage{
 		MsgId:       m.MsgID,
@@ -42,5 +56,9 @@ func (m *Message) ToBaseMessage() *im_v1.BaseMessage {
 		FromUserId:  m.FromUserID,
 		TargetType:  im_v1.TargetType(m.TargetType),
 		ToUserId:    m.ToUserID,
+		Content:     m.Content,
+		Timestamp:   m.Timestamp,
+		ExpireTime:  m.ExpireTime,
+		ContentId:   m.ContentID,
 	}
 }

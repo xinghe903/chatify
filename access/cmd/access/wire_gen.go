@@ -24,18 +24,23 @@ import (
 
 // wireApp init kratos application.
 func wireApp(bootstrap *conf.Bootstrap, logger log.Logger, serverInstance *conf.ServerInstance) (*kratos.App, func(), error) {
-	consumer := biz.NewConsumer()
 	dataData, cleanup, err := data.NewData(bootstrap, logger)
 	if err != nil {
 		return nil, nil, err
 	}
 	sessionRepo := data.NewSessionRepo(dataData, logger)
-	manager, cleanup2 := biz.NewManager(logger, sessionRepo)
-	accessService := service.NewAccessService(logger, consumer, manager, serverInstance)
+	mqProducer, cleanup2, err := data.NewKafkaProducer(bootstrap, logger)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	manager, cleanup3 := biz.NewManager(logger, sessionRepo, mqProducer)
+	accessService := service.NewAccessService(logger, manager, serverInstance)
 	grpcServer := server.NewGRPCServer(bootstrap, accessService, logger)
 	httpServer := server.NewHTTPServer(bootstrap, accessService, logger)
 	client, err := data.NewEtcdClient(bootstrap)
 	if err != nil {
+		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
@@ -43,6 +48,7 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger, serverInstance *conf.
 	registrar := data.NewRegistry(client)
 	app := newApp(logger, grpcServer, httpServer, registrar)
 	return app, func() {
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

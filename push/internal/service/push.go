@@ -12,16 +12,17 @@ import (
 // pushService is a push service.
 type PushService struct {
 	v1.UnimplementedPushServiceServer
-
-	uc  *biz.Push
-	log *log.Helper
+	consumerHandler *biz.UserStateHandler
+	uc              *biz.Push
+	log             *log.Helper
 }
 
 // NewPushService new a push service.
-func NewPushService(uc *biz.Push, logger log.Logger) *PushService {
+func NewPushService(uc *biz.Push, logger log.Logger, handler *biz.UserStateHandler) *PushService {
 	return &PushService{
-		uc:  uc,
-		log: log.NewHelper(logger),
+		uc:              uc,
+		log:             log.NewHelper(logger),
+		consumerHandler: handler, // 仅用作进入handler并初始化数据消费协程
 	}
 }
 

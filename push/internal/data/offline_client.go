@@ -82,3 +82,24 @@ func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, mess
 	p.log.WithContext(ctx).Debugf("offline message to user response: %v", resp)
 	return nil
 }
+
+func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error) {
+	if userID == "" {
+		return nil, fmt.Errorf("user id is empty")
+	}
+	resp, err := p.client.RetrieveOfflineMessages(ctx, &pb.RetrieveRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		p.log.WithContext(ctx).Errorf("Failed to retrieve offline message: %v", err)
+		return nil, err
+	}
+	if resp.Code != pb.RetrieveResponse_OK {
+		return nil, fmt.Errorf("Failed to retrieve offline message: %s", resp.Code)
+	}
+	var messages []*bo.Message
+	for _, message := range resp.Message {
+		messages = append(messages, bo.NewMessage(message))
+	}
+	return messages, nil
+}
