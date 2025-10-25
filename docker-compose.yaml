@@ -49,7 +49,7 @@ services:
       
       # 监听器配置
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:19092
       
       # 存储配置
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
@@ -119,4 +119,6 @@ services:
 # 定义网络
 networks:
   chatify-network:
-    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.50.0/24  # 不要和宿主机的网段重叠
