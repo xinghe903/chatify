@@ -2,8 +2,8 @@ package data
 
 import (
 	"context"
-	"push/internal/biz"
-	"push/internal/conf"
+	"logic/internal/biz"
+	"logic/internal/conf"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	KafkaTopicUserState = "user_state"
+	KafkaTopicUserMessage = "user_message"
 )
 
 var _ biz.Consumer = (*kafkaConsumer)(nil)
@@ -49,7 +49,7 @@ func NewKafkaConsumer(c *conf.Bootstrap, logger log.Logger) (biz.Consumer, func(
 	return &kafkaConsumer{
 		consumerGroup: consumerGroup,
 		log:           logg,
-		topics:        []string{KafkaTopicUserState},
+		topics:        []string{KafkaTopicUserMessage},
 	}, cleanup
 }
 

@@ -5,7 +5,9 @@ import (
 	"access/internal/biz/bo"
 	"access/internal/conf"
 	v1 "api/access/v1"
+	im_v1 "api/im/v1"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"pkg/auth"
@@ -15,6 +17,10 @@ import (
 	"github.com/go-kratos/kratos/v2/metadata"
 	"github.com/gorilla/websocket"
 	"go.opentelemetry.io/otel/trace"
+)
+
+var (
+	ErrInvalidMessage = errors.New("invalid message")
 )
 
 var (
@@ -33,18 +39,22 @@ type AccessService struct {
 	log         *log.Helper
 	connManager *biz.Manager
 	svrInstance *conf.ServerInstance
+	dispatchMsg *biz.Message
 }
 
 func NewAccessService(
 	logger log.Logger,
 	manager *biz.Manager,
 	svrInstance *conf.ServerInstance,
+	dispatchMsg *biz.Message,
 ) *AccessService {
 	svc := &AccessService{
 		log:         log.NewHelper(logger),
 		connManager: manager,
 		svrInstance: svrInstance,
+		dispatchMsg: dispatchMsg,
 	}
+	svc.connManager.RegisterDispatch(svc.RegisterDispatch())
 	return svc
 }
 
@@ -67,8 +77,8 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ConnectionTime: time.Now().Unix(),
 		ConnectionId:   s.svrInstance.Id,
 	}
-	s.log.WithContext(ctx).Debugf("Client connected: %s, serviceId: %s", conn.RemoteAddr(), s.svrInstance.Id)
-	s.log.WithContext(ctx).Debugf("Client userId: %s, username: %s", client.UserID, auth.GetUserName(ctx))
+	s.log.WithContext(ctx).Debugf("client connectionId=%s, serviceId=%s, userId=%s, username=%s",
+		client.ConnectionId, s.svrInstance.Id, client.UserID, client.UserName)
 	s.connManager.StartClient(ctx, client)
 }
 
@@ -83,6 +93,29 @@ func withoutTimeout(parent context.Context) (context.Context, context.CancelCaus
 		ctx = trace.ContextWithSpanContext(ctx, sc)
 	}
 	return ctx, cancel
+}
+
+func (s *AccessService) RegisterDispatch() biz.DispatchFunc {
+	return func(userId string, data []byte) {
+		s.Dispatch(context.TODO(), userId, data)
+	}
+}
+
+func (s *AccessService) Dispatch(ctx context.Context, userId string, data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	var message im_v1.BaseMessage
+	if err := json.Unmarshal(data, &message); err != nil {
+		s.log.WithContext(ctx).Warnf("json unmarshal error: %v", err)
+		s.connManager.SendToUser(ctx, userId, []byte(ErrInvalidMessage.Error()))
+		return
+	}
+	if err := s.dispatchMsg.DispatchMessage(ctx, &message); err != nil {
+		s.log.WithContext(ctx).Warnf("dispatch error: %v", err)
+		s.connManager.SendToUser(ctx, userId, []byte(err.Error()))
+		return
+	}
 }
 
 // func (s *AccessService) dispatch(message *v1.ClientToAccessMessage) {

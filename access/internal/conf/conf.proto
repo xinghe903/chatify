@@ -46,9 +46,8 @@ message Data {
   message Kafka {
     repeated string brokers = 1;
     string group_id = 2;
-    string user_state = 3;
-    int32 retry_count = 4;
-    google.protobuf.Duration timeout = 5;
+    int32 retry_count = 3;
+    google.protobuf.Duration timeout = 4;
   }
   Database database = 1;
   Redis redis = 2;

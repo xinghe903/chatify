@@ -22,7 +22,6 @@ data:
   kafka:
     brokers: ["localhost:19092"]
     group_id: chatify
-    user_state: user_state
     retry_count: 3
     timeout: 3s
 

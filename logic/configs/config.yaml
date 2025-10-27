@@ -20,6 +20,11 @@ data:
     dial_timeout: 1s
     username: ""
     password: ""
+  kafka:
+    brokers: ["localhost:19092"]
+    group_id: chatify
+    retry_count: 3
+    timeout: 3s
 client:
   # Push服务配置
   push_client:

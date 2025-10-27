@@ -9,10 +9,16 @@ import (
 	"access/internal/biz"
 	"access/internal/biz/bo"
 	"access/internal/conf"
+	im_v1 "api/im/v1"
 	"pkg/auth"
 
 	"github.com/IBM/sarama"
 	"github.com/go-kratos/kratos/v2/log"
+)
+
+const (
+	KafkaTopicUserState   = "user_state"
+	KafkaTopicUserMessage = "user_message"
 )
 
 var _ biz.MqProducer = (*KafkaProducer)(nil)
@@ -80,15 +86,36 @@ func NewKafkaProducer(cb *conf.Bootstrap, logger log.Logger) (biz.MqProducer, fu
 	return kp, cleanup, nil
 }
 
-// SendMessage 发送消息到Kafka
-func (p *KafkaProducer) SendMessage(ctx context.Context, topic string, message *bo.UserStateMessage) error {
-	if p.producer == nil {
-		return fmt.Errorf("kafka producer not initialized")
-	}
+// SendMessageWithUserState 把用户状态消息发送到Kafka
+// @param ctx context.Context 上下文
+// @param message *bo.UserStateMessage 用户状态消息
+// @return error 错误信息
+func (p *KafkaProducer) SendMessageWithUserState(ctx context.Context, message *bo.UserStateMessage) error {
 	// 将消息序列化为JSON
 	data, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("marshal message error: %w", err)
+	}
+	return p.SendMessage(ctx, KafkaTopicUserState, data)
+}
+
+func (p *KafkaProducer) SendMessageWithUserMessage(ctx context.Context, message *im_v1.BaseMessage) error {
+	// 将消息序列化为JSON
+	data, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("marshal message error: %w", err)
+	}
+	return p.SendMessage(ctx, KafkaTopicUserMessage, data)
+}
+
+// SendMessage 发送消息到Kafka
+// @param ctx context.Context 上下文
+// @param topic string Kafka主题
+// @param data []byte 消息数据
+// @return error 错误信息
+func (p *KafkaProducer) SendMessage(ctx context.Context, topic string, data []byte) error {
+	if p.producer == nil {
+		return fmt.Errorf("kafka producer not initialized")
 	}
 	// 生成消息ID作为Key，用于防止重复消费
 	// 使用Sonyflake分布式ID生成器，确保全局唯一

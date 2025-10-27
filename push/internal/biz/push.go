@@ -46,6 +46,7 @@ type MessageRepo interface {
 type OfflineRepo interface {
 	ArchiveMessages(ctx context.Context, taskId string, messages []*bo.Message) error
 	RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error)
+	AcknowledgeMessages(ctx context.Context, userId string, messageIds []string) error
 }
 
 type AccessNodeManager interface {

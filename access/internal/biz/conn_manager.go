@@ -2,6 +2,7 @@ package biz
 
 import (
 	"access/internal/biz/bo"
+	im_v1 "api/im/v1"
 	"context"
 	"errors"
 	"sync"
@@ -21,7 +22,8 @@ type SessionRepo interface {
 }
 
 type MqProducer interface {
-	SendMessage(ctx context.Context, topic string, message *bo.UserStateMessage) error
+	SendMessageWithUserState(ctx context.Context, message *bo.UserStateMessage) error
+	SendMessageWithUserMessage(ctx context.Context, message *im_v1.BaseMessage) error
 	Close() error
 }
 
@@ -39,12 +41,15 @@ type Client struct {
 
 // Manager 管理所有客户端连接
 type Manager struct {
-	clients    map[string]*Client
-	mu         sync.RWMutex
-	log        *log.Helper
-	session    SessionRepo
-	mqProducer MqProducer
+	clients      map[string]*Client
+	mu           sync.RWMutex
+	log          *log.Helper
+	session      SessionRepo
+	mqProducer   MqProducer
+	dispatchFunc DispatchFunc
 }
+
+type DispatchFunc func(userId string, data []byte)
 
 // NewManager 创建新的连接管理器
 func NewManager(logger log.Logger, session SessionRepo, producer MqProducer) (*Manager, func()) {
@@ -63,6 +68,10 @@ func NewManager(logger log.Logger, session SessionRepo, producer MqProducer) (*M
 		}
 		manager.session.BatchClearSession(context.Background(), uids)
 	}
+	defaultDispatch := func(userId string, data []byte) {
+		manager.log.Debugf("Received userId=%s, message=%s", userId, string(data))
+	}
+	manager.RegisterDispatch(defaultDispatch)
 	return manager, cleanup
 }
 
@@ -89,7 +98,7 @@ func (m *Manager) StartClient(ctx context.Context, client *Client) {
 			ConnectionId:   client.ConnectionId,
 		}
 
-		err := m.mqProducer.SendMessage(ctx, "user_state", userStateMsg)
+		err := m.mqProducer.SendMessageWithUserState(ctx, userStateMsg)
 		if err != nil {
 			m.log.WithContext(ctx).Errorf("Send user online message to kafka error: %v", err)
 		}
@@ -126,7 +135,7 @@ func (m *Manager) StopClient(ctx context.Context, client *Client) {
 			ConnectionTime: client.ConnectionTime,
 			ConnectionId:   client.ConnectionId,
 		}
-		err := m.mqProducer.SendMessage(ctx, "user_state", userStateMsg)
+		err := m.mqProducer.SendMessageWithUserState(ctx, userStateMsg)
 		if err != nil {
 			m.log.WithContext(ctx).Errorf("Send user offline message to kafka error: %v", err)
 		}
@@ -159,6 +168,10 @@ func (m *Manager) Count() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.clients)
+}
+
+func (m *Manager) RegisterDispatch(dispatch DispatchFunc) {
+	m.dispatchFunc = dispatch
 }
 
 func (m *Manager) readPump(ctx context.Context, client *Client) {

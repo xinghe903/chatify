@@ -59,6 +59,11 @@ func NewOfflineClient(c *conf.Bootstrap, logger log.Logger, r registry.Discovery
 	}, cleanup
 }
 
+// ArchiveMessages 存储离线消息
+// @param ctx context.Context 上下文
+// @param taskId string 任务ID
+// @param messages []*bo.Message 离线消息列表
+// @return error 错误信息
 func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, messages []*bo.Message) error {
 	if len(messages) == 0 {
 		return nil
@@ -83,6 +88,11 @@ func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, mess
 	return nil
 }
 
+// RetrieveOfflineMessages 获取离线消息
+// @param ctx context.Context 上下文
+// @param userID string 用户ID
+// @return []*bo.Message 离线消息列表
+// @return error 错误信息
 func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("user id is empty")
@@ -95,11 +105,34 @@ func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userID stri
 		return nil, err
 	}
 	if resp.Code != pb.RetrieveResponse_OK {
-		return nil, fmt.Errorf("Failed to retrieve offline message: %s", resp.Code)
+		return nil, fmt.Errorf("retrieve offline errCode=%d", resp.Code)
 	}
 	var messages []*bo.Message
 	for _, message := range resp.Message {
 		messages = append(messages, bo.NewMessage(message))
 	}
 	return messages, nil
+}
+
+// AcknowledgeMessages 确认消息已读
+// @param ctx context.Context 上下文
+// @param userId string 用户ID
+// @param messageIds []string 消息ID列表
+// @return error 错误信息
+func (p *OfflineClient) AcknowledgeMessages(ctx context.Context, userId string, messageIds []string) error {
+	if len(messageIds) == 0 {
+		return nil
+	}
+	resp, err := p.client.AcknowledgeMessages(ctx, &pb.AckRequest{
+		UserId:     userId,
+		MessageIds: messageIds,
+	})
+	if err != nil {
+		p.log.WithContext(ctx).Errorf("Failed to acknowledge message: %v", err)
+		return err
+	}
+	if resp.Code != pb.AckResponse_OK {
+		return fmt.Errorf("acknowledge message errCode=%d", resp.Code)
+	}
+	return nil
 }

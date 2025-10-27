@@ -64,18 +64,21 @@ func (h *UserStateHandler) UserOnline(ctx context.Context, userState *bo.UserSta
 	// TODO. The maximum length of messages should be taken into consideration.
 	messages, err := h.offlineRepo.RetrieveOfflineMessages(ctx, userState.UserID)
 	if err != nil {
-		h.log.WithContext(ctx).Errorf("Failed to retrieve offline message: %v", err)
 		return err
 	}
-
 	var messagesToSend []*im_v1.BaseMessage
 	for _, message := range messages {
 		messagesToSend = append(messagesToSend, message.ToBaseMessage())
 	}
 	h.log.WithContext(ctx).Infof("Send offline message to user: %v. message size=%d", userState.UserID, len(messagesToSend))
-	// TODO. The issue of partial delivery failures should be taken into consideration.
-	_, err = h.manager.SendToUser(ctx, userState.ConnectionId, messagesToSend)
-	return err
+	successIds, err := h.manager.SendToUser(ctx, userState.ConnectionId, messagesToSend)
+	if err != nil {
+		return err
+	}
+	if err = h.offlineRepo.AcknowledgeMessages(ctx, userState.UserID, successIds); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (h *UserStateHandler) UserOffline(ctx context.Context, userState *bo.UserStateMessage) error {
