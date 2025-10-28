@@ -9,24 +9,24 @@ option go_package = "api/im/v1;v1";
 // 消息类型枚举
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  CHAT                     = 1;
-  SYSTEM                   = 2;
-  CONTROL                  = 3;
+  CHAT                     = 1;  // 聊天消息
+  DATAREPORT                   = 2;  // 数据上报
+  CONTROL                  = 3;    // 控制消息
 }
 
 // 目标类型枚举
 enum TargetType {
   TARGET_TYPE_UNSPECIFIED = 0;
-  USER                    = 1;
-  GROUP                   = 2;
-  BROADCAST               = 3;
+  USER                    = 1;  // 单聊
+  GROUP                   = 2;  // 群聊
+  SYSTEM               = 3;     // 发送给系统
 }
 
 // 基础消息结构
 message BaseMessage {
   string              msg_id       = 1;     // 消息ID 用户级别唯一
   MessageType         message_type         = 2;     // 消息类型
-  string              from_user_id       = 3;     // 发送者ID 或 "system"
+  string              from_user_id       = 3;     // 发送者ID 
   TargetType          target_type  = 4;     // 目标类型
   string     to_user_id      = 5;     // 接收者
   bytes               content      = 6;     // 消息内容（二进制）

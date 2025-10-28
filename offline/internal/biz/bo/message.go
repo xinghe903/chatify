@@ -1,7 +1,7 @@
 package bo
 
 const (
-	BatchArchiveSize int = 1000 // 批量归档消息大小最大限制
+	BatchArchiveSize int = 1000 // 一次批量归档消息大小最大限制
 )
 
 // 消息状态枚举

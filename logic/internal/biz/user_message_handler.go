@@ -9,6 +9,11 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 )
 
+var (
+	ErrInvalidMessageType = errors.New("invalid message type")
+	ErrInvalidTargetType  = errors.New("invalid target type")
+)
+
 type MessageHandler func(ctx context.Context, key string, value []byte) error
 
 type Consumer interface {
@@ -40,9 +45,39 @@ func (h *UserMessageHandler) Handle() MessageHandler {
 			h.log.WithContext(ctx).Errorf("consumer kafka message json unmarshal error: %v", err)
 			return err
 		}
-		switch baseMsg.TargetType {
+		switch baseMsg.MessageType {
+		case im_v1.MessageType_CHAT:
+			return h.chat(&baseMsg)
+		case im_v1.MessageType_CONTROL:
+			return h.control(&baseMsg)
+		case im_v1.MessageType_DATAREPORT:
+			return h.dataReport(&baseMsg)
 		default:
-			return errors.New("unknown target type")
+			return ErrInvalidMessageType
 		}
 	}
+}
+
+// chat 处理聊天消息
+func (h *UserMessageHandler) chat(baseMsg *im_v1.BaseMessage) error {
+	if baseMsg.TargetType != im_v1.TargetType_USER && baseMsg.TargetType != im_v1.TargetType_GROUP {
+		return ErrInvalidTargetType
+	}
+	return nil
+}
+
+// dataReport 处理数据上报消息
+func (h *UserMessageHandler) dataReport(baseMsg *im_v1.BaseMessage) error {
+	if baseMsg.TargetType != im_v1.TargetType_SYSTEM {
+		return ErrInvalidTargetType
+	}
+	return nil
+}
+
+// control 处理控制类消息
+func (h *UserMessageHandler) control(baseMsg *im_v1.BaseMessage) error {
+	if baseMsg.TargetType != im_v1.TargetType_SYSTEM {
+		return ErrInvalidTargetType
+	}
+	return nil
 }

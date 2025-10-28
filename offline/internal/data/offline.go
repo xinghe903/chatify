@@ -53,7 +53,7 @@ func (r *OfflineMessageRepo) ArchiveMessages(ctx context.Context, messages []*bo
 	}
 
 	// 批量插入数据库
-	result := r.data.db.WithContext(ctx).CreateInBatches(offlineMessages, bo.BatchArchiveSize)
+	result := r.data.db.WithContext(ctx).CreateInBatches(offlineMessages, bo.BatchArchiveSize/10)
 	if result.Error != nil {
 		r.log.WithContext(ctx).Errorf("Failed to archive messages: %v", result.Error)
 		return result.Error
