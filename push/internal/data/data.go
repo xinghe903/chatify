@@ -27,6 +27,7 @@ var ProviderSet = wire.NewSet(
 	NewDiscovery,
 	NewOfflineClient,
 	NewKafkaConsumer,
+	NewMessageDedupRepo,
 )
 
 // Data 数据层主结构

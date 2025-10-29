@@ -16,7 +16,7 @@ import (
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewPushServiceClient, NewEtcdClient, NewRegistry, NewDiscovery, NewKafkaConsumer)
+var ProviderSet = wire.NewSet(NewData, NewPushServiceClient, NewEtcdClient, NewRegistry, NewDiscovery, NewKafkaConsumer, NewMessageDedupRepo)
 
 // Data 数据层主结构
 type Data struct {
