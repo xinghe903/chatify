@@ -46,7 +46,7 @@ func (Message) TableName() string {
 }
 
 func (s *Message) BeforeCreate(tx *gorm.DB) error {
-	if !strings.HasPrefix(s.ID, "mid") {
+	if !strings.HasPrefix(s.ID, "pmid") {
 		// push message id prefix
 		s.ID = "pmid" + s.ID
 	}

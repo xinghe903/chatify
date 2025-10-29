@@ -7,13 +7,16 @@ import "errors/errors.proto";
 option go_package = "api/logic/v1;v1";
 
 enum ErrorReason {
-  option (errors.default_code) = 600;
+  // 错误码枚举列表参考: net/http/status.go
+  option (errors.default_code) = 500;
 
   OK = 0 [(errors.code) = 200];
-  MESSAGE_REPEAT = 10001 [(errors.code) = 600];   // 消息重复
-  MESSAGE_EXPIRED = 10002 [(errors.code) = 600];  // 消息过期
-  PERMISSION_DENIED = 10003 [(errors.code) = 600]; // 校验签名失败
-  INTERNAL_ERROR = 10004 [(errors.code) = 600];  //  内部错误
-  USER_NOT_FOUND = 10005 [(errors.code) = 600];   // 发送用户不存在
+  MESSAGE_REPEAT = 2010001 [(errors.code) = 500];   // 消息重复
+  MESSAGE_EXPIRED = 2010002 [(errors.code) = 500];  // 消息过期
+  PERMISSION_DENIED = 2010003 [(errors.code) = 500]; // 校验签名失败
+  INTERNAL_ERROR = 2010004 [(errors.code) = 500];  //  内部错误
+  USER_NOT_FOUND = 2010005 [(errors.code) = 500];   // 发送用户不存在
+  TOO_MANY_TARGETS = 2010006 [(errors.code) = 500]; //  目标用户数量过多
+  INVOKE_PUSH_FAILED = 2010007 [(errors.code) = 500]; // 调用push service失败
    
 }

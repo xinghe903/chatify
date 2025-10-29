@@ -5,12 +5,14 @@ import (
 	"access/internal/biz/bo"
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
 
 const (
 	SessionKeyPrefix = "chatify:session:"
+	SessionTTL       = 60 // 60 秒
 )
 
 var _ biz.SessionRepo = (*sessionRepo)(nil)
@@ -27,6 +29,11 @@ func NewSessionRepo(data *Data, logger log.Logger) biz.SessionRepo {
 	}
 }
 
+// 续签
+func (s *sessionRepo) RenewSession(ctx context.Context, uid string) error {
+	return s.data.redisClient.Expire(ctx, SessionKeyPrefix+uid, SessionTTL*time.Second).Err()
+}
+
 func (s *sessionRepo) SetSession(ctx context.Context, session *bo.Session) error {
 	if session == nil {
 		return nil
@@ -35,7 +42,7 @@ func (s *sessionRepo) SetSession(ctx context.Context, session *bo.Session) error
 	if err != nil {
 		return err
 	}
-	return s.data.redisClient.Set(ctx, SessionKeyPrefix+session.Uid, sessionJson, 0).Err()
+	return s.data.redisClient.Set(ctx, SessionKeyPrefix+session.Uid, sessionJson, SessionTTL*time.Second).Err()
 }
 
 func (s *sessionRepo) GetSession(ctx context.Context, uid string) (*bo.Session, error) {

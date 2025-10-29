@@ -43,12 +43,17 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	}
 	offlineRepo, cleanup3 := data.NewOfflineClient(bootstrap, logger, discovery)
 	push := biz.NewPush(logger, sessionRepo, messageRepo, accessNodeManager, offlineRepo)
-	pushService := service.NewPushService(push, logger)
+	consumer, cleanup4 := data.NewKafkaConsumer(bootstrap, logger)
+	messageDedupRepo := data.NewMessageDedupRepo(dataData, logger)
+	userStateHandler, cleanup5 := biz.NewUserStateHandler(logger, offlineRepo, accessNodeManager, consumer, messageDedupRepo)
+	pushService := service.NewPushService(push, logger, userStateHandler)
 	grpcServer := server.NewGRPCServer(bootstrap, pushService, logger)
 	httpServer := server.NewHTTPServer(bootstrap, pushService, logger)
 	registrar := data.NewRegistry(client)
 	app := newApp(logger, grpcServer, httpServer, registrar)
 	return app, func() {
+		cleanup5()
+		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()

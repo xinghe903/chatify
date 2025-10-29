@@ -51,7 +51,7 @@ func NewAccessNodeManager(
 	manager := &accessNodeManager{
 		discovery: discovery,
 		data:      data,
-		log:       log.NewHelper(log.With(logger, "module", "access_node_manager")),
+		log:       log.NewHelper(logger),
 		accesss:   make(map[string]v1.AccessServiceClient),
 		conns:     make(map[string]*ggrpc.ClientConn),
 		// ctx:           ctx,
@@ -152,6 +152,7 @@ func (m *accessNodeManager) updateNodesFromInstances(ctx context.Context, watche
 					recovery.Recovery(),
 					circuitbreaker.Client(),
 					tracing.Client(),
+					circuitbreaker.Client(),
 				),
 			)
 			if err != nil {
@@ -185,21 +186,22 @@ func (m *accessNodeManager) SendToUser(ctx context.Context, connectId string, me
 		ConnectionId: connectId,
 		Message:      messages,
 	})
-	if err != nil {
-		return nil, errors.Join(errors.New("failed to send message to access node"), err)
-	}
-	if rsp.Code == v1.PushMessageResponse_ALL_SUCCESS {
+	// 全部发送成功
+	if err == nil {
 		successMsgIDs = append(successMsgIDs, rsp.SuccessMessageIds...)
 		return successMsgIDs, nil
 	}
-	if rsp.Code == v1.PushMessageResponse_PARTIAL_SUCCESS {
+	// 部分发送成功
+	if v1.IsPartialMessageFailed(err) {
 		successMsgIDs = append(successMsgIDs, rsp.SuccessMessageIds...)
 		return successMsgIDs, biz.ErrPartialSuccess
 	}
-	if rsp.Code == v1.PushMessageResponse_ALL_FAILED {
+	// 所有发送失败
+	if v1.IsAllMessageFailed(err) {
 		return nil, biz.ErrAllFailed
 	}
-	return nil, fmt.Errorf("unknown push message response code: %s", rsp.Code.String())
+	// 其他错误
+	return nil, errors.Join(err, errors.New("failed to send message to access node"))
 }
 
 // Close 关闭所有连接

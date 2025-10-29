@@ -25,12 +25,7 @@ message ChatInputRequest {
 }
 
 message ChatInputResponse {
-  enum Code {
-    OK = 0;
-    NOT = 1;
-  }
-  Code code = 1;
-  string message = 2;
+
 }
 
 enum PushType {
@@ -50,11 +45,4 @@ message SystemPushRequest {
 }
 
 message SystemPushResponse {
-  enum Code {
-    OK = 0;
-    TOO_MANY_TARGET = 1;
-    SERVER_ERROR = 2;
-  }
-  Code code = 1;
-  string message = 2;
 }

@@ -12,13 +12,17 @@ import (
 // LogicService is a greeter service.
 type LogicService struct {
 	v1.UnimplementedLogicServiceServer
-	log *log.Helper
-	uc  *biz.Logic
+	log      *log.Helper
+	uc       *biz.Logic
+	consumer *biz.UserMessageHandler
 }
 
 // NewLogicService new a greeter service.
-func NewLogicService(uc *biz.Logic, logger log.Logger) *LogicService {
-	return &LogicService{uc: uc, log: log.NewHelper(logger)}
+func NewLogicService(uc *biz.Logic, logger log.Logger, consumer *biz.UserMessageHandler) *LogicService {
+	return &LogicService{uc: uc,
+		log:      log.NewHelper(logger),
+		consumer: consumer, // 仅用作进入handler并初始化数据消费协程
+	}
 }
 
 // SendSystemPush 实现系统推送接口
@@ -28,11 +32,7 @@ func (s *LogicService) SendSystemPush(ctx context.Context, in *v1.SystemPushRequ
 	// 调用业务层处理系统推送
 	resp, err := s.uc.SendSystemPush(ctx, in)
 	if err != nil {
-		s.log.WithContext(ctx).Errorf("Failed to process system push: %v", err)
-		return &v1.SystemPushResponse{
-			Code:    v1.SystemPushResponse_OK,
-			Message: "System error",
-		}, nil
+		return nil, err
 	}
 
 	return resp, nil

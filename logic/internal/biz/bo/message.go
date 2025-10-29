@@ -5,6 +5,10 @@ import (
 	v1 "api/logic/v1"
 )
 
+const (
+	MaxTargetUsers = 1000
+)
+
 // MessageType 消息类型枚举
 type MessageType int32
 

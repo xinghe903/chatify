@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"
+	"github.com/go-kratos/kratos/v2/middleware/ratelimit"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/http"
@@ -27,6 +28,7 @@ func NewHTTPServer(cb *conf.Bootstrap, svc *service.AccessService, logger log.Lo
 				metrics.WithSeconds(monitoring.MetricSeconds),
 				metrics.WithRequests(monitoring.MetricRequests),
 			),
+			ratelimit.Server(),
 		),
 	}
 	if c.Http.Network != "" {

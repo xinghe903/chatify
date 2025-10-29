@@ -7,8 +7,13 @@ import "errors/errors.proto";
 option go_package = "api/push/v1;v1";
 
 enum ErrorReason {
-  option (errors.default_code) = 600;
+  // 错误码枚举列表参考: net/http/status.go
+  option (errors.default_code) = 500;
 
   OK = 0 [(errors.code) = 200];
-  USERNAME_REPEAT = 1001 [(errors.code) = 600];   // 用户名重复
+  USERNAME_REPEAT = 2030001 [(errors.code) = 500];   // 用户名重复
+  TOO_MANY_MESSAGES = 2030002 [(errors.code) = 500]; // 消息数量过多
+  SAVE_MESSAGE_FAILED = 2030003 [(errors.code) = 500]; // 保存消息失败
+  ARCHIVE_OFFLINE_MESSAGE_FAILED = 2030004 [(errors.code) = 500]; // 离线消息归档失败
+  UPDATE_MESSAGE_STATUS_FAILED = 2030005 [(errors.code) = 500]; // 更新消息状态失败
 }

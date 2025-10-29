@@ -3,6 +3,7 @@ package biz
 import (
 	access_v1 "api/access/v1"
 	im_v1 "api/im/v1"
+	v1 "api/push/v1"
 	"context"
 	"errors"
 	"push/internal/biz/bo"
@@ -45,6 +46,8 @@ type MessageRepo interface {
 
 type OfflineRepo interface {
 	ArchiveMessages(ctx context.Context, taskId string, messages []*bo.Message) error
+	RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error)
+	AcknowledgeMessages(ctx context.Context, userId string, messageIds []string) error
 }
 
 type AccessNodeManager interface {
@@ -78,10 +81,13 @@ func NewPush(logger log.Logger,
 
 // PushToUser 推送消息到用户
 func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.BaseMessage) error {
-	p.log.WithContext(ctx).Debugf("PushToUser taskID=%s, messageCount=%d", taskID, len(messages))
+	if len(messages) > bo.MaxMessageCount {
+		return v1.ErrorTooManyMessages("message count=%d, but max is %d", len(messages), bo.MaxMessageCount)
+	}
 	// 创建数据库消息
 	if err := p.saveMessages(ctx, taskID, messages); err != nil {
-		return err
+		p.log.WithContext(ctx).Errorf("failed to save messages. taskID=%s, error=%s", taskID, err.Error())
+		return v1.ErrorSaveMessageFailed("data save message failed")
 	}
 	// 把所有消息都设置为发送失败
 	msgSendMask := make(map[string]error, len(messages))
@@ -94,11 +100,13 @@ func (p *Push) PushToUser(ctx context.Context, taskID string, messages []*im_v1.
 	successMsgIDs := p.sendMessageToAccessNode(ctx, accessMessageGroups, msgSendMask)
 	// 归档离线消息
 	if err := p.archiveOfflineMessages(ctx, taskID, msgSendMask, messages); err != nil {
-		return err
+		p.log.WithContext(ctx).Errorf("failed to archive offline messages. taskID=%s, error=%s", taskID, err.Error())
+		return v1.ErrorArchiveOfflineMessageFailed("data archive message failed")
 	}
 	// 更新消息状态
 	if err := p.updateMessageStatus(ctx, msgSendMask); err != nil {
-		return err
+		p.log.WithContext(ctx).Errorf("failed to update message status. taskID=%s, error=%s", taskID, err.Error())
+		return v1.ErrorUpdateMessageStatusFailed("data update message status failed")
 	}
 	p.log.WithContext(ctx).Debugf("PushToUser completed. taskID=%s, messageCount=%d, successCount=%d", taskID, len(messages), len(successMsgIDs))
 	return nil
@@ -124,7 +132,6 @@ func (p *Push) saveMessages(ctx context.Context, taskID string, messages []*im_v
 		boMessages = append(boMessages, boMessage)
 	}
 	if err := p.messageRepo.SaveMessages(ctx, boMessages); err != nil {
-		p.log.WithContext(ctx).Errorf("failed to save messages. err=%s", err.Error())
 		return err
 	}
 	return nil
@@ -187,7 +194,8 @@ func (p *Push) sendMessageToAccessNode(ctx context.Context,
 		successIds, err := p.manager.SendToUser(ctx, connectId, messages.Message)
 		if err != nil {
 			// 发送失败，不需要额外记录错误。因为所有消息都是默认发送失败的情况
-			p.log.WithContext(ctx).Errorf("failed to send message to access node. connectId=%s, error=%s", connectId, err.Error())
+			p.log.WithContext(ctx).Errorf("failed to send message to access node. connectId=%s, error=%s",
+				connectId, err.Error())
 			continue
 		}
 		// 标记发送成功标识
@@ -236,7 +244,6 @@ func (p *Push) archiveOfflineMessages(ctx context.Context,
 		})
 	}
 	if err := p.offlineRepo.ArchiveMessages(ctx, taskID, offlineMsg); err != nil {
-		p.log.WithContext(ctx).Errorf("failed to archive offline messages. err=%s", err.Error())
 		return err
 	}
 	return nil
@@ -258,7 +265,6 @@ func (p *Push) updateMessageStatus(ctx context.Context, msgSendMask map[string]e
 		boMessages = append(boMessages, msg)
 	}
 	if err := p.messageRepo.UpdateMessageStatus(ctx, boMessages); err != nil {
-		p.log.WithContext(ctx).Errorf("failed to update message status. err=%s", err.Error())
 		return err
 	}
 	return nil

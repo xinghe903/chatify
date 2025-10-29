@@ -11,6 +11,7 @@ import (
 	"push/internal/conf"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -34,6 +35,7 @@ func NewOfflineClient(c *conf.Bootstrap, logger log.Logger, r registry.Discovery
 		grpc.WithDiscovery(r),
 		grpc.WithMiddleware(
 			tracing.Client(),
+			circuitbreaker.Client(),
 		),
 	)
 	if err != nil {
@@ -53,10 +55,15 @@ func NewOfflineClient(c *conf.Bootstrap, logger log.Logger, r registry.Discovery
 		client: client,
 		// conn:   conn,
 		sonyFlake: auth.NewSonyflake(),
-		log:       log.NewHelper(log.With(logger, "module", "offline-service-client")),
+		log:       log.NewHelper(logger),
 	}, cleanup
 }
 
+// ArchiveMessages 存储离线消息
+// @param ctx context.Context 上下文
+// @param taskId string 任务ID
+// @param messages []*bo.Message 离线消息列表
+// @return error 错误信息
 func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, messages []*bo.Message) error {
 	if len(messages) == 0 {
 		return nil
@@ -73,10 +80,49 @@ func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, mess
 		Message: baseMessages,
 	})
 	if err != nil {
-		p.log.WithContext(ctx).Errorf("Failed to offline message to user: %v", err)
 		return err
 	}
-
 	p.log.WithContext(ctx).Debugf("offline message to user response: %v", resp)
+	return nil
+}
+
+// RetrieveOfflineMessages 获取离线消息
+// @param ctx context.Context 上下文
+// @param userID string 用户ID
+// @return []*bo.Message 离线消息列表
+// @return error 错误信息
+func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error) {
+	if userID == "" {
+		return nil, fmt.Errorf("user id is empty")
+	}
+	resp, err := p.client.RetrieveOfflineMessages(ctx, &pb.RetrieveRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var messages []*bo.Message
+	for _, message := range resp.Message {
+		messages = append(messages, bo.NewMessage(message))
+	}
+	return messages, nil
+}
+
+// AcknowledgeMessages 确认消息已读
+// @param ctx context.Context 上下文
+// @param userId string 用户ID
+// @param messageIds []string 消息ID列表
+// @return error 错误信息
+func (p *OfflineClient) AcknowledgeMessages(ctx context.Context, userId string, messageIds []string) error {
+	if len(messageIds) == 0 {
+		return nil
+	}
+	_, err := p.client.AcknowledgeMessages(ctx, &pb.AckRequest{
+		UserId:     userId,
+		MessageIds: messageIds,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
