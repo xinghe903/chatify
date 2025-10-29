@@ -70,7 +70,6 @@ func (p *PushClient) SendMessage(ctx context.Context, taskId string, messages []
 		Message: baseMessages,
 	})
 	if err != nil {
-		p.log.WithContext(ctx).Errorf("Failed to push message to user: %v", err)
 		return err
 	}
 

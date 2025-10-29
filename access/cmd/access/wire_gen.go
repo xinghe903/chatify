@@ -35,7 +35,8 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger, serverInstance *conf.
 		return nil, nil, err
 	}
 	manager, cleanup3 := biz.NewManager(logger, sessionRepo, mqProducer)
-	accessService := service.NewAccessService(logger, manager, serverInstance)
+	message := biz.NewMessage(logger, mqProducer)
+	accessService := service.NewAccessService(logger, manager, serverInstance, message)
 	grpcServer := server.NewGRPCServer(bootstrap, accessService, logger)
 	httpServer := server.NewHTTPServer(bootstrap, accessService, logger)
 	client, err := data.NewEtcdClient(bootstrap)

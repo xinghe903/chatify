@@ -2,6 +2,10 @@ package bo
 
 import im_v1 "api/im/v1"
 
+const (
+	MaxMessageCount int = 1000
+)
+
 // 消息状态枚举
 // 定义了消息在推送过程中的状态
 type MessageStatus string

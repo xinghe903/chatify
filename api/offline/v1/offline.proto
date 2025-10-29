@@ -39,13 +39,7 @@ message RetrieveRequest {
 
 
 message RetrieveResponse {
-  enum Code {
-    UNSUPPORTED = 0;
-    OK = 1;
-    FAILED_INVALID_USER = 2;
-  }
-  Code code = 1;
-  repeated im.v1.BaseMessage message = 2;   // max size: 1000
+  repeated im.v1.BaseMessage message = 1;   // max size: 1000
 }
 
 message AckRequest {
@@ -54,13 +48,6 @@ message AckRequest {
 }
 
 message AckResponse {
-  enum Code {
-    UNSUPPORTED = 0;
-    OK = 1;
-    FAILED_INVALID_USER = 2;
-  }
-  Code code = 1;
-  string message = 2;
 }
 
 
@@ -70,10 +57,4 @@ message ArchiveRequest {
 }
 
 message ArchiveResponse {
-  enum Code {
-    OK = 0;
-    TOO_MANY_MESSAGE = 1;
-  }
-  Code code = 1;
-  string message = 2;
 }

@@ -40,6 +40,7 @@ func NewUserMessageHandler(
 
 func (h *UserMessageHandler) Handle() MessageHandler {
 	return func(ctx context.Context, key string, value []byte) error {
+		return nil
 		var baseMsg im_v1.BaseMessage
 		if err := json.Unmarshal(value, &baseMsg); err != nil {
 			h.log.WithContext(ctx).Errorf("consumer kafka message json unmarshal error: %v", err)
@@ -47,11 +48,11 @@ func (h *UserMessageHandler) Handle() MessageHandler {
 		}
 		switch baseMsg.MessageType {
 		case im_v1.MessageType_CHAT:
-			return h.chat(&baseMsg)
+			return h.chat(ctx, &baseMsg)
 		case im_v1.MessageType_CONTROL:
-			return h.control(&baseMsg)
+			return h.control(ctx, &baseMsg)
 		case im_v1.MessageType_DATAREPORT:
-			return h.dataReport(&baseMsg)
+			return h.dataReport(ctx, &baseMsg)
 		default:
 			return ErrInvalidMessageType
 		}
@@ -59,25 +60,28 @@ func (h *UserMessageHandler) Handle() MessageHandler {
 }
 
 // chat 处理聊天消息
-func (h *UserMessageHandler) chat(baseMsg *im_v1.BaseMessage) error {
+func (h *UserMessageHandler) chat(ctx context.Context, baseMsg *im_v1.BaseMessage) error {
 	if baseMsg.TargetType != im_v1.TargetType_USER && baseMsg.TargetType != im_v1.TargetType_GROUP {
 		return ErrInvalidTargetType
 	}
+	h.log.WithContext(ctx).Infof("Receive chat message. baseMsg: %v", baseMsg)
 	return nil
 }
 
 // dataReport 处理数据上报消息
-func (h *UserMessageHandler) dataReport(baseMsg *im_v1.BaseMessage) error {
+func (h *UserMessageHandler) dataReport(ctx context.Context, baseMsg *im_v1.BaseMessage) error {
 	if baseMsg.TargetType != im_v1.TargetType_SYSTEM {
 		return ErrInvalidTargetType
 	}
+	h.log.WithContext(ctx).Infof("Receive data report message. baseMsg: %v", baseMsg)
 	return nil
 }
 
 // control 处理控制类消息
-func (h *UserMessageHandler) control(baseMsg *im_v1.BaseMessage) error {
+func (h *UserMessageHandler) control(ctx context.Context, baseMsg *im_v1.BaseMessage) error {
 	if baseMsg.TargetType != im_v1.TargetType_SYSTEM {
 		return ErrInvalidTargetType
 	}
+	h.log.WithContext(ctx).Infof("Receive control message. baseMsg: %v", baseMsg)
 	return nil
 }

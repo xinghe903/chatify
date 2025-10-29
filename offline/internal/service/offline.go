@@ -30,30 +30,19 @@ func NewOfflineService(uc *biz.OfflineUsecase, logger log.Logger) *OfflineServic
 // ArchiveMessages 实现归档消息的RPC方法
 func (s *OfflineService) ArchiveMessages(ctx context.Context, in *v1.ArchiveRequest) (*v1.ArchiveResponse, error) {
 	s.log.WithContext(ctx).Debugf("ArchiveMessages request received. messageCount=%d", len(in.Message))
-
 	// 检查消息数量是否超过限制
 	if len(in.Message) > bo.BatchArchiveSize {
-		s.log.WithContext(ctx).Warnf("too many messages in one request. count=%d", len(in.Message))
-		return &v1.ArchiveResponse{
-			Code:    v1.ArchiveResponse_TOO_MANY_MESSAGE,
-			Message: "Too many messages in one request",
-		}, nil
+		s.log.WithContext(ctx).Warnf("message count=%d, but max is %d", len(in.Message), bo.BatchArchiveSize)
+		return nil, v1.ErrorTooManyMessages("message count=%d, but max is %d", len(in.Message), bo.BatchArchiveSize)
 	}
 
 	// 调用业务层的ArchiveMessages方法处理消息归档
 	err := s.uc.ArchiveMessages(ctx, in.TaskId, in.Message)
 	if err != nil {
-		s.log.WithContext(ctx).Errorf("ArchiveMessages failed. error=%s", err.Error())
 		return nil, err
 	}
-
-	// 返回成功响应
-	response := &v1.ArchiveResponse{
-		Code:    v1.ArchiveResponse_OK,
-		Message: "Archive messages success",
-	}
 	s.log.WithContext(ctx).Debugf("ArchiveMessages request processed successfully. messageCount=%d", len(in.Message))
-	return response, nil
+	return &v1.ArchiveResponse{}, nil
 }
 
 func (s *OfflineService) RetrieveOfflineMessages(ctx context.Context, in *v1.RetrieveRequest) (*v1.RetrieveResponse, error) {
@@ -73,18 +62,12 @@ func (s *OfflineService) RetrieveOfflineMessages(ctx context.Context, in *v1.Ret
 			Content:     msg.Content,
 		}
 	}
-	return &v1.RetrieveResponse{
-		Code:    v1.RetrieveResponse_OK,
-		Message: data,
-	}, nil
+	return &v1.RetrieveResponse{}, nil
 }
 
 func (s *OfflineService) AcknowledgeMessages(ctx context.Context, in *v1.AckRequest) (*v1.AckResponse, error) {
 	if err := s.uc.MarkMessagesAsDelivered(ctx, in.MessageIds); err != nil {
 		return nil, err
 	}
-	return &v1.AckResponse{
-		Code:    v1.AckResponse_OK,
-		Message: "Acknowledge messages success",
-	}, nil
+	return &v1.AckResponse{}, nil
 }

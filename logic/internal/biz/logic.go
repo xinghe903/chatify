@@ -3,7 +3,6 @@ package biz
 import (
 	v1 "api/logic/v1"
 	"context"
-	"errors"
 	"logic/internal/conf"
 
 	"logic/internal/biz/bo"
@@ -53,11 +52,10 @@ func (l *Logic) SendSystemPush(ctx context.Context, req *v1.SystemPushRequest) (
 	l.log.WithContext(ctx).Infof("Receive system push request from %s, content_id: %s", req.FromUserId, req.ContentId)
 
 	// 1. 检查目标用户数量是否超过限制
-	if len(req.ToUserIds) > 1000 {
-		return &v1.SystemPushResponse{
-			Code:    v1.SystemPushResponse_TOO_MANY_TARGET,
-			Message: "Too many target users",
-		}, nil
+	if len(req.ToUserIds) > bo.MaxTargetUsers {
+		l.log.WithContext(ctx).Errorf("too many target users limit=%d, input=%d", bo.MaxTargetUsers, len(req.ToUserIds))
+		return nil, v1.ErrorTooManyTargets("too many target users limit=%d, input=%d",
+			bo.MaxTargetUsers, len(req.ToUserIds))
 	}
 
 	// 2. 进行用户校验和黑白名单过滤
@@ -69,39 +67,27 @@ func (l *Logic) SendSystemPush(ctx context.Context, req *v1.SystemPushRequest) (
 	var err error
 	var contentId string
 	if contentId, err = l.sonyFlake.GenerateBase62(); err != nil {
-		return &v1.SystemPushResponse{
-			Code:    v1.SystemPushResponse_SERVER_ERROR,
-			Message: "System error",
-		}, errors.Join(errors.New("failed to generate content ID"), err)
+		l.log.WithContext(ctx).Errorf("failed to generate content id: %v", err)
+		return nil, v1.ErrorInternalError("failed to generate content id: %v", err)
 	}
 	for _, message := range messages {
 		message.ContentId = "content" + contentId
 		if message.MsgId, err = l.sonyFlake.GenerateBase62(); err != nil {
-			return &v1.SystemPushResponse{
-				Code:    v1.SystemPushResponse_SERVER_ERROR,
-				Message: "System error",
-			}, errors.Join(errors.New("failed to generate message ID"), err)
+			l.log.WithContext(ctx).Errorf("failed to generate message id: %v", err)
+			return nil, v1.ErrorInternalError("failed to generate message id: %v", err)
 		}
 		message.MsgId = "msg" + message.MsgId
 	}
 	var taskId string
 	if taskId, err = l.sonyFlake.GenerateBase62(); err != nil {
-		return &v1.SystemPushResponse{
-			Code:    v1.SystemPushResponse_SERVER_ERROR,
-			Message: "System error",
-		}, errors.Join(errors.New("failed to generate task ID"), err)
+		l.log.WithContext(ctx).Errorf("failed to generate task id: %v", err)
+		return nil, v1.ErrorInternalError("failed to generate task id: %v", err)
 	}
 	if err = l.pushClient.SendMessage(ctx, "task"+taskId, messages); err != nil {
-		l.log.WithContext(ctx).Errorf("Failed to send message to push service: %v", err)
-		return &v1.SystemPushResponse{
-			Code:    v1.SystemPushResponse_SERVER_ERROR,
-			Message: "System error",
-		}, errors.Join(errors.New("failed to send message to push service"), err)
+		l.log.WithContext(ctx).Errorf("failed to send message to push service: %v", err)
+		return nil, v1.ErrorInvokePushFailed("failed to send message to push service: %v", err)
 	}
 	l.log.WithContext(ctx).Infof("Sent message to push service. TaskID: %s, len: %d", taskId, len(messages))
 	// 5. 返回成功响应
-	return &v1.SystemPushResponse{
-		Code:    v1.SystemPushResponse_OK,
-		Message: "Success",
-	}, nil
+	return &v1.SystemPushResponse{}, nil
 }

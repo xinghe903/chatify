@@ -21,12 +21,6 @@ message PushRequest {
 }
 
 message PushResponse {
-  enum Code {
-    OK = 0;
-    TOO_MANY_MESSAGE = 1;
-  }
-  Code code = 1;
-  string message = 2;
 }
 
 message BatchQueryRequest {

@@ -58,7 +58,6 @@ func (k *kafkaConsumer) Start(ctx context.Context, handler biz.MessageHandler) {
 	// 启动消费者
 	go func() {
 		handler := consumerGroupHandler{
-			ready:   make(chan bool),
 			handler: handler,
 			log:     k.log,
 		}
@@ -81,14 +80,12 @@ func (k *kafkaConsumer) Start(ctx context.Context, handler biz.MessageHandler) {
 
 // 消费者组处理器
 type consumerGroupHandler struct {
-	ready   chan bool
 	log     *log.Helper
 	handler biz.MessageHandler
 }
 
 // Setup 在消费者加入组后、开始消费前调用
 func (h consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error {
-	close(h.ready)
 	return nil
 }
 

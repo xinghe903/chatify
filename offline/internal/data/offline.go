@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"errors"
 	"pkg/auth"
 	"time"
 
@@ -35,9 +36,7 @@ func (r *OfflineMessageRepo) ArchiveMessages(ctx context.Context, messages []*bo
 	if len(messages) == 0 {
 		return nil
 	}
-
 	r.log.WithContext(ctx).Infof("Archiving %d messages", len(messages))
-
 	// 将BO转换为PO实体
 	offlineMessages := make([]*po.OfflineMessage, 0, len(messages))
 	now := time.Now()
@@ -45,7 +44,7 @@ func (r *OfflineMessageRepo) ArchiveMessages(ctx context.Context, messages []*bo
 	for _, msg := range messages {
 		m := po.NewOfflineMessageFromBo(msg)
 		if m.ID, err = r.sonyFlake.GenerateBase62(); err != nil {
-			r.log.WithContext(ctx).Errorf("failed to generate offline message ID. err=%s", err.Error())
+			return errors.Join(err, errors.New("failed to generate offline message ID"))
 		}
 		m.CreatedAt = now
 		m.UpdatedAt = now
@@ -55,10 +54,8 @@ func (r *OfflineMessageRepo) ArchiveMessages(ctx context.Context, messages []*bo
 	// 批量插入数据库
 	result := r.data.db.WithContext(ctx).CreateInBatches(offlineMessages, bo.BatchArchiveSize/10)
 	if result.Error != nil {
-		r.log.WithContext(ctx).Errorf("Failed to archive messages: %v", result.Error)
-		return result.Error
+		return errors.Join(result.Error, errors.New("failed to archive messages"))
 	}
-
 	r.log.WithContext(ctx).Infof("Successfully archived %d messages", result.RowsAffected)
 	return nil
 }
@@ -66,7 +63,6 @@ func (r *OfflineMessageRepo) ArchiveMessages(ctx context.Context, messages []*bo
 // GetOfflineMessagesByUserID 根据用户ID获取离线消息
 func (r *OfflineMessageRepo) GetOfflineMessagesByUserID(ctx context.Context, userID string, lastMessageId string) ([]*bo.OfflineMessage, error) {
 	var messages []po.OfflineMessage
-
 	query := r.data.db.WithContext(ctx).
 		Where("to_user_id = ?", userID).
 		Where("status = ?", po.MessageStatusPending).
@@ -75,16 +71,13 @@ func (r *OfflineMessageRepo) GetOfflineMessagesByUserID(ctx context.Context, use
 		Limit(bo.BatchArchiveSize)
 
 	if err := query.Find(&messages).Error; err != nil {
-		r.log.WithContext(ctx).Errorf("Failed to get offline messages for user %s: %v", userID, err)
-		return nil, err
+		return nil, errors.Join(err, errors.New("failed to get offline messages"))
 	}
-
 	// 将PO转换为BO
 	result := make([]*bo.OfflineMessage, len(messages))
 	for i, msg := range messages {
 		result[i] = msg.ToBo()
 	}
-
 	return result, nil
 }
 
@@ -93,7 +86,6 @@ func (r *OfflineMessageRepo) MarkMessagesAsDelivered(ctx context.Context, messag
 	if len(messageIDs) == 0 {
 		return nil
 	}
-
 	result := r.data.db.WithContext(ctx).
 		Model(&po.OfflineMessage{}).
 		Where("msg_id IN ?", messageIDs).
@@ -101,12 +93,9 @@ func (r *OfflineMessageRepo) MarkMessagesAsDelivered(ctx context.Context, messag
 			"status":     po.MessageStatusDelivered,
 			"updated_at": time.Now(),
 		})
-
 	if result.Error != nil {
-		r.log.WithContext(ctx).Errorf("Failed to mark messages as delivered: %v", result.Error)
-		return result.Error
+		return errors.Join(result.Error, errors.New("failed to mark messages as delivered"))
 	}
-
 	r.log.WithContext(ctx).Infof("Marked %d messages as delivered", result.RowsAffected)
 	return nil
 }

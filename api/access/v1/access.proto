@@ -30,17 +30,6 @@ message PushMessageRequest {
 
 // 下发结果
 message PushMessageResponse {
-  enum Code {
-    UNSUPPORT = 0;  // 不支持
-    CONN_NOT_FOUND = 1;        // 连接不存在
-    ALL_SUCCESS = 2;      // 所有消息发送成功
-    ALL_FAILED = 3;        // 所有消息发送失败
-    PARTIAL_SUCCESS = 4;       // 部分消息发送成功
-    INTERNAL = 5;         // 内部错误
-  }
-
-  Code code = 1;
-  string message = 2;     // 错误描述
-  repeated string failed_message_ids = 3;
-  repeated string success_message_ids = 4;
+  repeated string failed_message_ids = 1;
+  repeated string success_message_ids = 2;
 }

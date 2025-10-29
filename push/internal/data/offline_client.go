@@ -80,10 +80,8 @@ func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, mess
 		Message: baseMessages,
 	})
 	if err != nil {
-		p.log.WithContext(ctx).Errorf("Failed to offline message to user: %v", err)
 		return err
 	}
-
 	p.log.WithContext(ctx).Debugf("offline message to user response: %v", resp)
 	return nil
 }
@@ -101,11 +99,7 @@ func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userID stri
 		UserId: userID,
 	})
 	if err != nil {
-		p.log.WithContext(ctx).Errorf("Failed to retrieve offline message: %v", err)
 		return nil, err
-	}
-	if resp.Code != pb.RetrieveResponse_OK {
-		return nil, fmt.Errorf("retrieve offline errCode=%d", resp.Code)
 	}
 	var messages []*bo.Message
 	for _, message := range resp.Message {
@@ -123,16 +117,12 @@ func (p *OfflineClient) AcknowledgeMessages(ctx context.Context, userId string, 
 	if len(messageIds) == 0 {
 		return nil
 	}
-	resp, err := p.client.AcknowledgeMessages(ctx, &pb.AckRequest{
+	_, err := p.client.AcknowledgeMessages(ctx, &pb.AckRequest{
 		UserId:     userId,
 		MessageIds: messageIds,
 	})
 	if err != nil {
-		p.log.WithContext(ctx).Errorf("Failed to acknowledge message: %v", err)
 		return err
-	}
-	if resp.Code != pb.AckResponse_OK {
-		return fmt.Errorf("acknowledge message errCode=%d", resp.Code)
 	}
 	return nil
 }

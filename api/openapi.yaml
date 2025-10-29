@@ -341,12 +341,7 @@ components:
                     type: string
         logic.v1.SystemPushResponse:
             type: object
-            properties:
-                code:
-                    type: integer
-                    format: enum
-                message:
-                    type: string
+            properties: {}
         offline.v1.AckRequest:
             type: object
             properties:
@@ -358,12 +353,7 @@ components:
                         type: string
         offline.v1.AckResponse:
             type: object
-            properties:
-                code:
-                    type: integer
-                    format: enum
-                message:
-                    type: string
+            properties: {}
         offline.v1.ArchiveRequest:
             type: object
             properties:
@@ -375,18 +365,10 @@ components:
                         $ref: '#/components/schemas/im.v1.BaseMessage'
         offline.v1.ArchiveResponse:
             type: object
-            properties:
-                code:
-                    type: integer
-                    format: enum
-                message:
-                    type: string
+            properties: {}
         offline.v1.RetrieveResponse:
             type: object
             properties:
-                code:
-                    type: integer
-                    format: enum
                 message:
                     type: array
                     items:

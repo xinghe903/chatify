@@ -8,6 +8,7 @@ import (
 	"auth/internal/biz"
 	"auth/internal/conf"
 	"auth/internal/data/po"
+	"pkg/model"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"

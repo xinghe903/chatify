@@ -20,10 +20,6 @@ import (
 )
 
 var (
-	ErrInvalidMessage = errors.New("invalid message")
-)
-
-var (
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -108,7 +104,7 @@ func (s *AccessService) Dispatch(ctx context.Context, userId string, data []byte
 	var message im_v1.BaseMessage
 	if err := json.Unmarshal(data, &message); err != nil {
 		s.log.WithContext(ctx).Warnf("json unmarshal error: %v", err)
-		s.connManager.SendToUser(ctx, userId, []byte(ErrInvalidMessage.Error()))
+		s.connManager.SendToUser(ctx, userId, []byte(v1.ErrorInvalidMessage("json unmarshal error: %v", err).Error()))
 		return
 	}
 	if err := s.dispatchMsg.DispatchMessage(ctx, &message); err != nil {
@@ -137,17 +133,29 @@ func (s *AccessService) PushMessage(ctx context.Context, req *v1.PushMessageRequ
 	s.log.WithContext(ctx).Debugf("Received message: %+v\n", req)
 	if req.ConnectionId != s.svrInstance.Id {
 		s.log.WithContext(ctx).Errorf("Received message from unknown connection: %s", req.ConnectionId)
-		return nil, errors.New("unknown connection id")
+		return nil, v1.ErrorConnectionNotFound("unknown connection id")
 	}
 	var successMsgIDs []string
+	var failedMsgIDs []string
 	for _, message := range req.Message {
-		s.connManager.SendToUser(ctx, message.ToUserId, []byte(message.String()))
+		if err := s.connManager.SendToUser(ctx, message.ToUserId, []byte(message.String())); err != nil {
+			s.log.WithContext(ctx).Errorf("failed to send message to user. userID=%s, error=%s",
+				message.ToUserId, err.Error())
+			failedMsgIDs = append(failedMsgIDs, message.MsgId)
+			continue
+		}
 		successMsgIDs = append(successMsgIDs, message.MsgId)
 	}
-
+	var err error
+	if len(failedMsgIDs) == 0 {
+		err = nil
+	} else if len(failedMsgIDs) == len(req.Message) {
+		err = v1.ErrorAllMessageFailed("all message failed")
+	} else {
+		err = v1.ErrorPartialMessageFailed("partial message failed")
+	}
 	return &v1.PushMessageResponse{
-		Code:              v1.PushMessageResponse_ALL_SUCCESS,
-		Message:           "success",
 		SuccessMessageIds: successMsgIDs,
-	}, nil
+		FailedMessageIds:  []string{},
+	}, err
 }

@@ -3,6 +3,7 @@ package biz
 import (
 	"access/internal/biz/bo"
 	im_v1 "api/im/v1"
+	v1 "api/logic/v1"
 	"context"
 	"errors"
 	"sync"
@@ -146,7 +147,7 @@ func (m *Manager) StopClient(ctx context.Context, client *Client) {
 }
 
 // SendToUser 向指定用户发送消息
-func (m *Manager) SendToUser(ctx context.Context, userID string, message []byte) {
+func (m *Manager) SendToUser(ctx context.Context, userID string, message []byte) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if client, ok := m.clients[userID]; ok {
@@ -160,7 +161,10 @@ func (m *Manager) SendToUser(ctx context.Context, userID string, message []byte)
 			// 队列满，主动踢出
 			m.log.WithContext(ctx).Warnf("User %s is full, kick out", userID)
 		}
+	} else {
+		return v1.ErrorUserNotFound("connection user not found")
 	}
+	return nil
 }
 
 // Count 返回当前连接数

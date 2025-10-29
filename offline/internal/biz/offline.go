@@ -1,9 +1,9 @@
 package biz
 
 import (
-	v1 "api/im/v1"
+	im_v1 "api/im/v1"
+	v1 "api/offline/v1"
 	"context"
-	"errors"
 	"offline/internal/biz/bo"
 	"time"
 
@@ -33,13 +33,15 @@ func NewOfflineUsecase(messageRepo MessageRepo, logger log.Logger) *OfflineUseca
 }
 
 // ArchiveMessages 实现消息归档业务逻辑
-func (uc *OfflineUsecase) ArchiveMessages(ctx context.Context, taskId string, messages []*v1.BaseMessage) error {
+func (uc *OfflineUsecase) ArchiveMessages(ctx context.Context, taskId string, messages []*im_v1.BaseMessage) error {
 	// 参数验证
 	if len(messages) == 0 {
-		return errors.New("messages cannot be empty")
+		uc.log.WithContext(ctx).Infof("message count=0, skip archive")
+		return nil
 	}
 	if len(messages) > bo.BatchArchiveSize {
-		return errors.New("too many messages in one request")
+		uc.log.WithContext(ctx).Warnf("message count=%d, but max is %d", len(messages), bo.BatchArchiveSize)
+		return v1.ErrorTooManyMessages("message count=%d, but max is %d", len(messages), bo.BatchArchiveSize)
 	}
 	uc.log.WithContext(ctx).Debugf("Preparing to archive %d messages", len(messages))
 	// 将v1.BaseMessage转换为bo.OfflineMessage
@@ -67,11 +69,10 @@ func (uc *OfflineUsecase) ArchiveMessages(ctx context.Context, taskId string, me
 	// 调用数据层归档消息
 	err := uc.messageRepo.ArchiveMessages(ctx, boMessages)
 	if err != nil {
-		uc.log.WithContext(ctx).Errorf("Failed to archive messages: %v", err)
-		return err
+		uc.log.WithContext(ctx).Errorf("failed to archive message. taskID=%s, error=%s", taskId, err.Error())
+		return v1.ErrorArchiveMessageFailed("data archive failed")
 	}
-
-	uc.log.WithContext(ctx).Debugf("Successfully archived %d messages", len(messages))
+	uc.log.WithContext(ctx).Debugf("Successfully archived %d message", len(messages))
 	return nil
 }
 
@@ -79,17 +80,17 @@ func (uc *OfflineUsecase) ArchiveMessages(ctx context.Context, taskId string, me
 func (uc *OfflineUsecase) GetOfflineMessages(ctx context.Context, userID string, lastMessageId string) ([]*bo.OfflineMessage, error) {
 	// 参数验证
 	if userID == "" {
-		return nil, errors.New("user ID cannot be empty")
+		return nil, v1.ErrorInvalidUser("user ID cannot be empty")
 	}
 	if lastMessageId == "" {
 		lastMessageId = "0"
 	}
-	uc.log.WithContext(ctx).Debugf("Getting offline messages for user %s, last message ID: %s", userID, lastMessageId)
+	uc.log.WithContext(ctx).Debugf("Getting offline message for user %s, last message ID: %s", userID, lastMessageId)
 	// 调用数据层获取消息
 	messages, err := uc.messageRepo.GetOfflineMessagesByUserID(ctx, userID, lastMessageId)
 	if err != nil {
-		uc.log.WithContext(ctx).Errorf("Failed to get offline messages: %v", err)
-		return nil, err
+		uc.log.WithContext(ctx).Errorf("Failed to get offline message: %v", err)
+		return nil, v1.ErrorGetOfflineMessageFailed("data get offline message failed")
 	}
 	return messages, nil
 }
@@ -97,17 +98,14 @@ func (uc *OfflineUsecase) GetOfflineMessages(ctx context.Context, userID string,
 // MarkMessagesAsDelivered 标记消息为已送达
 func (uc *OfflineUsecase) MarkMessagesAsDelivered(ctx context.Context, messageIDs []string) error {
 	if len(messageIDs) == 0 {
-		return errors.New("message IDs cannot be empty")
+		return nil // 空消息ID列表，直接返回
 	}
-
 	uc.log.WithContext(ctx).Debugf("Marking %d messages as delivered", len(messageIDs))
-
 	// 调用数据层标记消息状态
 	if err := uc.messageRepo.MarkMessagesAsDelivered(ctx, messageIDs); err != nil {
-		uc.log.WithContext(ctx).Errorf("Failed to mark messages as delivered: %v", err)
-		return err
+		uc.log.WithContext(ctx).Errorf("Failed to mark message as delivered: %v", err)
+		return v1.ErrorMarkMessageAsDeliveredFailed("data mark message as delivered failed")
 	}
-
 	uc.log.WithContext(ctx).Debugf("Successfully marked %d messages as delivered", len(messageIDs))
 	return nil
 }
