@@ -57,6 +57,21 @@ func (h *UserMessageHandler) Handle() MessageHandler {
 			return err
 		}
 
+		// 检查消息是否已消费（使用 baseMsg.MsgId 作为唯一标识）
+		if baseMsg.MsgId != "" {
+			isNew, err := h.dedupRepo.CheckAndSetDedup(ctx, baseMsg.MsgId)
+			if err != nil {
+				h.log.WithContext(ctx).Errorf("检查消息去重失败: msgId=%s, error=%v", baseMsg.MsgId, err)
+				// Redis错误时继续处理消息，避免因为Redis故障导致消息无法消费
+			} else if !isNew {
+				// 消息已被消费过，跳过
+				h.log.WithContext(ctx).Debugf("消息已消费，跳过: msgId=%s", baseMsg.MsgId)
+				return ErrMessageDuplicate
+			}
+		} else {
+			h.log.WithContext(ctx).Warnf("消息缺少 msgId，跳过去重检查: %v", baseMsg)
+		}
+
 		// 处理消息
 		switch baseMsg.MessageType {
 		case im_v1.MessageType_CHAT:

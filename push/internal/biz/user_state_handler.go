@@ -64,21 +64,6 @@ func (h *UserStateHandler) Handle() MessageHandler {
 			return err
 		}
 
-		// 检查消息是否已消费（使用 userState.Id 作为唯一标识）
-		if userState.Id != "" {
-			isNew, err := h.dedupRepo.CheckAndSetDedup(ctx, userState.Id)
-			if err != nil {
-				h.log.WithContext(ctx).Errorf("检查消息去重失败: id=%s, error=%v", userState.Id, err)
-				// Redis错误时继续处理消息，避免因为Redis故障导致消息无法消费
-			} else if !isNew {
-				// 消息已被消费过，跳过
-				h.log.WithContext(ctx).Debugf("消息已消费，跳过: id=%s", userState.Id)
-				return ErrMessageDuplicate
-			}
-		} else {
-			h.log.WithContext(ctx).Warnf("消息缺少 id，跳过去重检查: %v", userState)
-		}
-
 		// 处理消息
 		switch userState.State {
 		case bo.UserStateOnline:
