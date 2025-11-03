@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"auth/internal/conf"
+	"pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
 
@@ -49,15 +49,6 @@ func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server) *kratos.App {
 
 func main() {
 	flag.Parse()
-	logger := log.With(log.NewStdLogger(os.Stdout),
-		"ts", log.DefaultTimestamp,
-		"caller", log.DefaultCaller,
-		"service.id", id,
-		"service.name", Name,
-		"service.version", Version,
-		"trace.id", tracing.TraceID(),
-		"span.id", tracing.SpanID(),
-	)
 	c := config.New(
 		config.WithSource(
 			file.NewSource(flagconf),
@@ -73,8 +64,25 @@ func main() {
 	if err := c.Scan(&bc); err != nil {
 		panic(err)
 	}
-
-	app, cleanup, err := wireApp(&bc, logger)
+	tracingConf := bc.Monitoring.Tracing
+	var endpoint string
+	if tracingConf.Exporter == "jaeger" {
+		endpoint = tracingConf.Jaeger.Endpoint
+	}
+	if err := monitoring.InitTraceProvider(endpoint, bc.Monitoring.ServiceName, tracingConf.Exporter, tracingConf.Sampler); err != nil {
+		panic(err)
+	}
+	if err := monitoring.InitPrometheus(bc.Monitoring.ServiceName); err != nil {
+		panic(err)
+	}
+	loggingConf := bc.Monitoring.Logging
+	// 初始化zap日志器
+	zapLogger := monitoring.InitLogger(&monitoring.LoggingConfig{
+		Format: loggingConf.Format,
+		Level:  loggingConf.Level,
+		Output: loggingConf.Output,
+	})
+	app, cleanup, err := wireApp(&bc, log.With(zapLogger, "service.name", bc.Monitoring.ServiceName))
 	if err != nil {
 		panic(err)
 	}

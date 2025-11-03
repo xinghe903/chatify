@@ -19,6 +19,22 @@ data:
     write_timeout: 1s
 
 auth:
-  jwt_secret: your-secret-key-here
   access_token_ttl: 600        # 10分钟
   refresh_token_ttl: 604800     # 7天
+
+# 监控配置统一放在monitoring下
+monitoring:
+  service_name: auth-service
+  tracing:
+    sampler: 1.0
+    exporter: jaeger
+    jaeger:
+      endpoint: 172.26.238.249:32750
+  logging:
+    level: debug
+    format: json
+    output: stdout
+  metrics:
+    prometheus:
+      endpoint: :2112
+      timeout: 10s

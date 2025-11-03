@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"auth/internal/biz"
 	"auth/internal/conf"
 	"auth/internal/data/po"
 	"pkg/model"
@@ -18,7 +17,7 @@ import (
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewUserRepo, NewCacheRepo)
+var ProviderSet = wire.NewSet(NewData, NewUserRepo, NewSessionRepo)
 
 // Data 数据层主结构
 type Data struct {
@@ -145,19 +144,4 @@ func initRedisClient(c *conf.Data, logg log.Logger) (*redis.Client, error) {
 	log.NewHelper(logg).Info("Redis client initialized successfully")
 
 	return client, nil
-}
-
-// NewCacheRepo 创建缓存仓库
-func NewCacheRepo(data *Data) biz.CacheRepo {
-	return &cacheRepo{data: data}
-}
-
-// cacheRepo 缓存仓库实现
-type cacheRepo struct {
-	data *Data
-}
-
-// GetClient 获取Redis客户端
-func (c *cacheRepo) GetClient() *redis.Client {
-	return c.data.redis
 }

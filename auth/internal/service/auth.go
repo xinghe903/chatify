@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"pkg/auth"
 	"strconv"
 
@@ -36,13 +35,13 @@ func (s *AuthService) Register(ctx context.Context, in *v1.RegisterRequest) (*v1
 	s.log.WithContext(ctx).Debugf("Register: %v", in)
 	// 验证请求参数
 	if in.Username == "" {
-		return nil, v1.ErrorUserNameInvalid("username cannot be empty")
+		return nil, v1.ErrorParamInvalid("username cannot be empty")
 	}
 	if in.Email == "" {
-		return nil, v1.ErrorEmailInvalid("email cannot be empty")
+		return nil, v1.ErrorParamInvalid("email cannot be empty")
 	}
 	if in.Password == "" {
-		return nil, v1.ErrorPasswordInvalid("password cannot be empty")
+		return nil, v1.ErrorParamInvalid("password cannot be empty")
 	}
 
 	// 调用业务逻辑层进行用户注册
@@ -56,7 +55,6 @@ func (s *AuthService) Register(ctx context.Context, in *v1.RegisterRequest) (*v1
 		s.log.WithContext(ctx).Errorf("Failed to register user: %v", err)
 		return nil, err
 	}
-
 	// 返回注册成功的用户ID
 	return &v1.RegisterResponse{
 			UserId: userID,
@@ -77,13 +75,12 @@ func (s *AuthService) Login(ctx context.Context, in *v1.LoginRequest) (*v1.Login
 	case in.Phone != "":
 		identifier = in.Phone
 	default:
-		return nil, v1.ErrorUserNotFound("username, email or phone is required")
+		return nil, v1.ErrorParamInvalid("username, email or phone is required")
 	}
 
 	if in.Password == "" {
-		return nil, v1.ErrorPasswordInvalid("password cannot be empty")
+		return nil, v1.ErrorParamInvalid("password cannot be empty")
 	}
-
 	// 调用业务逻辑层进行用户登录
 	result, err := s.uc.Login(ctx, identifier, in.Password)
 	if err != nil {
@@ -94,6 +91,7 @@ func (s *AuthService) Login(ctx context.Context, in *v1.LoginRequest) (*v1.Login
 	// 返回登录结果，包含token信息
 	return &v1.LoginResponse{
 			UserId:           result.UserID,
+			Username:         result.Username,
 			AccessToken:      result.AccessToken,
 			RefreshToken:     result.RefreshToken,
 			AccessExpiresIn:  strconv.FormatInt(result.AccessExpiresIn, 10),
@@ -111,7 +109,6 @@ func (s *AuthService) VerifyToken(ctx context.Context, in *v1.VerifyTokenRequest
 		return nil, v1.ErrorTokenInvalid("transport not found")
 	}
 	in.AccessToken = tp.RequestHeader().Get(string(auth.ACCESS_TOKEN))
-	s.log.WithContext(ctx).Debugf("VerifyToken: %v", in)
 	setHeader := func(err *kerrors.Error) error {
 		errJson, _ := json.Marshal(err)
 		tp.ReplyHeader().Set(string(auth.AUTH_ERROR), string(errJson))
@@ -124,11 +121,12 @@ func (s *AuthService) VerifyToken(ctx context.Context, in *v1.VerifyTokenRequest
 	// 调用业务逻辑层验证令牌
 	result, err := s.uc.VerifyToken(ctx, in.AccessToken)
 	if err != nil {
-		s.log.WithContext(ctx).Errorf("Failed to verify token: %v", err)
-		// 如果验证失败，返回错误
-		return nil, setHeader(v1.ErrorTokenInvalid(err.Error()))
+		e, ok := err.(*kerrors.Error)
+		if !ok {
+			e = v1.ErrorTokenInvalid("invalid access token")
+		}
+		return nil, setHeader(e)
 	}
-
 	tp.ReplyHeader().Set(string(auth.USER_ID), result.UserID)
 	tp.ReplyHeader().Set(string(auth.USER_NAME), result.Username)
 	// 返回验证成功的结果，将expires_at转换为字符串
@@ -144,40 +142,34 @@ func (s *AuthService) VerifyToken(ctx context.Context, in *v1.VerifyTokenRequest
 func (s *AuthService) Logout(ctx context.Context, in *v1.LogoutRequest) (*v1.LogoutResponse, error) {
 	// 验证请求参数
 	if in.UserId == "" {
-		// return nil, v1.ErrorInvalidArgument("user_id cannot be empty")
-		return nil, errors.New("user_id cannot be empty")
+		return nil, v1.ErrorParamInvalid("user_id cannot be empty")
 	}
 	if in.RefreshToken == "" {
-		// return nil, v1.ErrorInvalidArgument("refresh_token cannot be empty")
-		return nil, errors.New("refresh_token cannot be empty")
+		return nil, v1.ErrorParamInvalid("refresh_token cannot be empty")
 	}
-
 	// 调用业务逻辑层进行用户登出
 	if err := s.uc.Logout(ctx, in.UserId, in.RefreshToken); err != nil {
+		s.log.WithContext(ctx).Errorf("Failed to logout err: %s", err)
 		return nil, err
 	}
-
 	// 返回成功响应
 	return &v1.LogoutResponse{}, nil
 }
 
-// RevokeUser 注销用户（永久删除账户）
+// RevokeUser 注销用户
 func (s *AuthService) RevokeUser(ctx context.Context, in *v1.RevokeUserRequest) (*v1.RevokeUserResponse, error) {
 	// 验证请求参数
 	if in.UserId == "" {
-		// return nil, v1.ErrorInvalidArgument("user_id cannot be empty")
-		return nil, errors.New("user_id cannot be empty")
+		return nil, v1.ErrorParamInvalid("user_id cannot be empty")
 	}
 	if in.Password == "" {
-		// return nil, v1.ErrorInvalidArgument("password cannot be empty")
-		return nil, errors.New("password cannot be empty")
+		return nil, v1.ErrorParamInvalid("password cannot be empty")
 	}
-
 	// 调用业务逻辑层进行用户注销
 	if err := s.uc.RevokeUser(ctx, in.UserId, in.Password); err != nil {
+		s.log.WithContext(ctx).Errorf("Failed to revoke user: %v", err)
 		return nil, err
 	}
-
 	// 返回成功响应
 	return &v1.RevokeUserResponse{}, nil
 }
@@ -186,20 +178,22 @@ func (s *AuthService) RevokeUser(ctx context.Context, in *v1.RevokeUserRequest) 
 func (s *AuthService) RefreshToken(ctx context.Context, in *v1.RefreshTokenRequest) (*v1.RefreshTokenResponse, error) {
 	// 验证请求参数
 	if in.RefreshToken == "" {
-		// return nil, v1.ErrorInvalidArgument("refresh_token cannot be empty")
-		return nil, errors.New("refresh_token cannot be empty")
+		return nil, v1.ErrorParamInvalid("refresh_token cannot be empty")
 	}
 
 	// 调用业务逻辑层进行令牌刷新
 	result, err := s.uc.RefreshToken(ctx, in.RefreshToken)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("Failed to refresh token: %v", err)
 		return nil, err
 	}
 
 	// 返回新的访问令牌
 	return &v1.RefreshTokenResponse{
-			AccessToken:     result.AccessToken,
-			AccessExpiresIn: strconv.FormatInt(result.AccessExpiresIn, 10),
+			AccessToken:      result.AccessToken,
+			AccessExpiresIn:  strconv.FormatInt(result.AccessExpiresIn, 10),
+			NewRefreshToken:  result.RefreshToken,
+			RefreshExpiresIn: strconv.FormatInt(result.RefreshExpiresIn, 10),
 		},
 		nil
 }

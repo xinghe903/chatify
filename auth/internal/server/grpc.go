@@ -19,8 +19,8 @@ func NewGRPCServer(cb *conf.Bootstrap, auth *service.AuthService, logger log.Log
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
-			logging.Server(logger),
 			tracing.Server(),
+			logging.Server(logger),
 			ratelimit.Server(),
 		),
 	}

@@ -10,8 +10,8 @@ const (
 	UserStatusRevoked UserStatus = "revoked" // 已注销
 	UserStatusLocked  UserStatus = "locked"  // 被锁定
 
-	UserNameMaxLength = 20
-	EmailMaxLength    = 50
+	UserNameMaxLength = 20 // 用户名最大长度
+	EmailMaxLength    = 50 // 邮箱最大长度
 )
 
 // User 用户业务对象
@@ -44,17 +44,19 @@ func NewUser(username, email, password, phone string) *User {
 // LoginResult 登录结果结构
 type LoginResult struct {
 	UserID           string
+	Username         string
 	AccessToken      string
 	RefreshToken     string
-	AccessExpiresIn  int64
-	RefreshExpiresIn int64
+	AccessExpiresIn  int64 // 单位为秒
+	RefreshExpiresIn int64 // 单位为秒
 }
 
 // TokenResult 令牌结果结构
 type TokenResult struct {
-	AccessToken     string
-	RefreshToken    string
-	AccessExpiresIn int64
+	AccessToken      string
+	RefreshToken     string
+	AccessExpiresIn  int64 // 单位为秒
+	RefreshExpiresIn int64 // 单位为秒
 }
 
 // VerifyTokenResult 验证令牌结果结构
@@ -62,5 +64,5 @@ type VerifyTokenResult struct {
 	UserID    string
 	Username  string
 	Email     string
-	ExpiresAt int64
+	ExpiresAt int64 // 单位为秒
 }

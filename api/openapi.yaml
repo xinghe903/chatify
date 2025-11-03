@@ -217,6 +217,8 @@ components:
             properties:
                 userId:
                     type: string
+                username:
+                    type: string
                 accessToken:
                     type: string
                 refreshToken:
@@ -251,7 +253,6 @@ components:
                     type: string
                 newRefreshToken:
                     type: string
-                    description: 可选：是否轮换 refresh_token
                 refreshExpiresIn:
                     type: string
         auth.v1.RegisterRequest:
