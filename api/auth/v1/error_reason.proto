@@ -24,7 +24,13 @@ enum ErrorReason {
   PASSWORD_BCRYPT_FAILED = 1000011 [(errors.code) = 500]; // 密码加密失败
   CREATE_USER_FAILED = 1000012 [(errors.code) = 500];  // 创建用户失败
   TOKEN_INVALID = 1000013 [(errors.code) = 500];  // 令牌无效
-  
+  SAVE_SESSION_FAILED = 1000014 [(errors.code) = 500];  // 保存会话失败
+  PARAM_INVALID = 1000015 [(errors.code) = 500]; // 参数无效
+  CLEAR_SESSION_FAILED = 1000016 [(errors.code) = 500]; // 清除会话失败
+  USER_STATUS_NOT_ACTIVE = 1000017 [(errors.code) = 500];  // 用户状态未激活
+  REVOKE_USER_FAILED = 1000018 [(errors.code) = 500];  // 撤销用户失败
+  REFRESH_TOKEN_FAILED = 1000019 [(errors.code) = 500];  // 刷新令牌失败
+  VERIFY_TOKEN_FAILED = 1000020 [(errors.code) = 500];  // 验证令牌失败
 }
 
 

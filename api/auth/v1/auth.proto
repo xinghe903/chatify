@@ -82,10 +82,11 @@ message LoginRequest {
 
 message LoginResponse {
   string user_id = 1;
-  string access_token = 2;
-  string refresh_token = 3;
-  string access_expires_in = 4;   // access token 过期时间（秒）
-  string refresh_expires_in = 5;  // refresh token 过期时间（秒）
+  string username = 2;
+  string access_token = 3;
+  string refresh_token = 4;
+  string access_expires_in = 5;   // access token 过期时间（秒）
+  string refresh_expires_in = 6;  // refresh token 过期时间（秒）
 }
 
 // 3. 注销用户（永久删除账户）
@@ -118,7 +119,6 @@ message RefreshTokenRequest {
 message RefreshTokenResponse {
   string access_token = 1;
   string access_expires_in = 2;
-  // 可选：是否轮换 refresh_token
   string new_refresh_token = 3;
   string refresh_expires_in = 4;
 }
