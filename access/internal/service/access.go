@@ -1,17 +1,19 @@
 package service
 
 import (
-	"access/internal/biz"
-	"access/internal/biz/bo"
-	"access/internal/conf"
-	v1 "api/access/v1"
-	im_v1 "api/im/v1"
+	"github.com/xinghe903/chatify/access/internal/biz"
+	"github.com/xinghe903/chatify/access/internal/biz/bo"
+	"github.com/xinghe903/chatify/access/internal/conf"
 	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"pkg/auth"
 	"time"
+
+	"github.com/xinghe903/chatify/pkg/auth"
+
+	v1 "github.com/xinghe903/chatify/api/access/v1"
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/metadata"
@@ -67,7 +69,7 @@ func (s *AccessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = auth.NewContext(ctx, r.Header.Get(string(auth.USER_ID)), r.Header.Get(string(auth.USER_NAME)))
 	client := &biz.Client{
 		Conn:           conn,
-		Send:           make(chan *bo.SendContext, 100),
+		Send:           make(chan *bo.SendContext, 1024),
 		UserID:         auth.GetUserID(ctx),
 		UserName:       auth.GetUserName(ctx),
 		ConnectionTime: time.Now().Unix(),

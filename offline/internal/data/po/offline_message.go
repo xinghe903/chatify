@@ -1,9 +1,11 @@
 package po
 
 import (
-	"offline/internal/biz/bo"
-	"pkg/model"
 	"strings"
+
+	"github.com/xinghe903/chatify/offline/internal/biz/bo"
+
+	"github.com/xinghe903/chatify/pkg/model"
 
 	"gorm.io/gorm"
 )

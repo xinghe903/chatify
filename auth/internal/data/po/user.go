@@ -1,10 +1,12 @@
 package po
 
 import (
-	"auth/internal/biz/bo"
-	"pkg/model"
 	"strings"
 	"time"
+
+	"github.com/xinghe903/chatify/auth/internal/biz/bo"
+
+	"github.com/xinghe903/chatify/pkg/model"
 
 	"gorm.io/gorm"
 )

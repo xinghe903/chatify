@@ -1,24 +1,19 @@
-module auth
+module github.com/xinghe903/chatify/auth
 
 go 1.24.0
 
 toolchain go1.24.7
 
-replace (
-	api => ../api
-	pkg => ../pkg
-)
-
 require (
-	api v0.0.0-00010101000000-000000000000
 	github.com/go-kratos/kratos/v2 v2.9.1
 	github.com/google/wire v0.6.0
 	github.com/redis/go-redis/v9 v9.15.0
+	github.com/xinghe903/chatify/api v0.0.0-beta003
+	github.com/xinghe903/chatify/pkg v0.0.0-beta003
 	go.uber.org/automaxprocs v1.5.1
 	google.golang.org/protobuf v1.36.9
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.31.0
-	pkg v0.0.0-00010101000000-000000000000
 )
 
 require (

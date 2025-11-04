@@ -1,13 +1,15 @@
 package biz
 
 import (
-	"access/internal/biz/bo"
-	im_v1 "api/im/v1"
-	v1 "api/logic/v1"
 	"context"
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/xinghe903/chatify/access/internal/biz/bo"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	v1 "github.com/xinghe903/chatify/api/logic/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 

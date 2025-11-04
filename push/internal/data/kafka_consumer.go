@@ -2,11 +2,14 @@ package data
 
 import (
 	"context"
-	"push/internal/biz"
-	"push/internal/conf"
 	"time"
 
+	"github.com/xinghe903/chatify/push/internal/biz"
+	"github.com/xinghe903/chatify/push/internal/conf"
+
 	"github.com/go-kratos/kratos/v2/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/IBM/sarama"
 )
@@ -96,8 +99,20 @@ func (h consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 // ConsumeClaim 处理每个分区的消息
 func (h consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	ctx := context.Background()
 	for message := range claim.Messages() {
-		h.log.Debugf("收到消息: Topic=%s, Partition=%d, Offset=%d, Key=%s, Value=%s, Timestamp=%v",
+		// 创建 trace 上下文
+		carrier := make(propagation.HeaderCarrier)
+		for _, h := range message.Headers {
+			key := string(h.Key)
+			value := string(h.Value)
+			carrier.Set(key, value)
+		}
+		prop := otel.GetTextMapPropagator()
+		ctxWithTrace := prop.Extract(ctx, carrier)
+		tracer := otel.Tracer("sarama-consumer")
+		_, span := tracer.Start(ctxWithTrace, "process-kafka-message")
+		h.log.WithContext(ctxWithTrace).Debugf("收到消息: Topic=%s, Partition=%d, Offset=%d, Key=%s, Value=%s, Timestamp=%v",
 			message.Topic,
 			message.Partition,
 			message.Offset,
@@ -105,11 +120,12 @@ func (h consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, 
 			string(message.Value),
 			message.Timestamp,
 		)
-		if err := h.handler(context.TODO(), string(message.Key), message.Value); err != nil {
-			h.log.Errorf("处理消息失败: %v", err)
+		if err := h.handler(ctxWithTrace, string(message.Key), message.Value); err != nil {
+			h.log.WithContext(ctxWithTrace).Errorf("处理消息失败: %v", err)
 		}
 		// 手动提交位移（可选，也可以设置自动提交）
 		session.MarkMessage(message, "")
+		span.End()
 	}
 	return nil
 }

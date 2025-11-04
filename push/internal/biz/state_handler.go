@@ -1,12 +1,14 @@
 package biz
 
 import (
-	im_v1 "api/im/v1"
-	offline_v1 "api/offline/v1"
 	"context"
 	"encoding/json"
 	"errors"
-	"push/internal/biz/bo"
+
+	"github.com/xinghe903/chatify/push/internal/biz/bo"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	offline_v1 "github.com/xinghe903/chatify/api/offline/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -77,27 +79,42 @@ func (h *UserStateHandler) Handle() MessageHandler {
 }
 
 func (h *UserStateHandler) UserOnline(ctx context.Context, userState *bo.UserStateMessage) error {
-	// TODO. The maximum length of messages should be taken into consideration.
-	messages, err := h.offlineRepo.RetrieveOfflineMessages(ctx, userState.UserID)
-	if err != nil {
-		h.log.WithContext(ctx).Errorf("failed to retrieve offline messages. userID=%s, error=%s", userState.UserID, err.Error())
-		return offline_v1.ErrorGetOfflineMessageFailed("data get offline message failed")
-	}
+	msgSize := 0
 	var messagesToSend []*im_v1.BaseMessage
-	for _, message := range messages {
-		messagesToSend = append(messagesToSend, message.ToBaseMessage())
+	fn := func(latestId string) error {
+		messages, err := h.offlineRepo.RetrieveOfflineMessages(ctx, userState.UserID, latestId)
+		if err != nil {
+			h.log.WithContext(ctx).Errorf("failed to retrieve offline messages. userID=%s, error=%s", userState.UserID, err.Error())
+			return offline_v1.ErrorGetOfflineMessageFailed("data get offline message failed")
+		}
+		msgSize = len(messages)
+		for _, message := range messages {
+			messagesToSend = append(messagesToSend, message.ToBaseMessage())
+		}
+		successIds, err := h.manager.SendToUser(ctx, userState.ConnectionId, messagesToSend)
+		if err != nil {
+			h.log.WithContext(ctx).Errorf("failed to send message to access node. userID=%s, error=%s",
+				userState.UserID, err.Error())
+			return errors.Join(err, errors.New("failed to send message to access node"))
+		}
+		if err = h.offlineRepo.AcknowledgeMessages(ctx, userState.UserID, successIds); err != nil {
+			h.log.WithContext(ctx).Errorf("failed to acknowledge messages. userID=%s, error=%s",
+				userState.UserID, err.Error())
+			return offline_v1.ErrorMarkMessageAsDeliveredFailed("data acknowledge message failed")
+		}
+		return nil
 	}
-	h.log.WithContext(ctx).Infof("Send offline message to user: %v. message size=%d", userState.UserID, len(messagesToSend))
-	successIds, err := h.manager.SendToUser(ctx, userState.ConnectionId, messagesToSend)
-	if err != nil {
-		h.log.WithContext(ctx).Errorf("failed to send message to access node. userID=%s, error=%s",
-			userState.UserID, err.Error())
-		return errors.Join(err, errors.New("failed to send message to access node"))
-	}
-	if err = h.offlineRepo.AcknowledgeMessages(ctx, userState.UserID, successIds); err != nil {
-		h.log.WithContext(ctx).Errorf("failed to acknowledge messages. userID=%s, error=%s",
-			userState.UserID, err.Error())
-		return offline_v1.ErrorMarkMessageAsDeliveredFailed("data acknowledge message failed")
+	latestId := ""
+	for {
+		if err := fn(latestId); err != nil {
+			return err
+		}
+		h.log.WithContext(ctx).Debugf("Send offline message to user: %v. message size=%d, latestId=%s", userState.UserID, msgSize, latestId)
+		if msgSize != bo.MaxMessageCount {
+			break
+		}
+		latestId = messagesToSend[len(messagesToSend)-1].MsgId
+		messagesToSend = []*im_v1.BaseMessage{}
 	}
 	return nil
 }

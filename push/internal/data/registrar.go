@@ -1,7 +1,7 @@
 package data
 
 import (
-	"push/internal/conf"
+	"github.com/xinghe903/chatify/push/internal/conf"
 
 	registryetcd "github.com/go-kratos/kratos/contrib/registry/etcd/v2"
 	"github.com/go-kratos/kratos/v2/registry"

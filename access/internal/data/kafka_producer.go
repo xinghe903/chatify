@@ -6,14 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"access/internal/biz"
-	"access/internal/biz/bo"
-	"access/internal/conf"
-	im_v1 "api/im/v1"
-	"pkg/auth"
+	"github.com/xinghe903/chatify/access/internal/biz"
+	"github.com/xinghe903/chatify/access/internal/biz/bo"
+	"github.com/xinghe903/chatify/access/internal/conf"
+
+	"github.com/xinghe903/chatify/pkg/auth"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 
 	"github.com/IBM/sarama"
 	"github.com/go-kratos/kratos/v2/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 const (
@@ -124,11 +128,25 @@ func (p *KafkaProducer) SendMessage(ctx context.Context, topic string, data []by
 		p.log.WithContext(ctx).Errorf("Generate message ID error: %v", err)
 		return fmt.Errorf("generate message ID error: %w", err)
 	}
+	// 导入OpenTelemetry的propagation
+	headers := make([]sarama.RecordHeader, 0)
+	prop := otel.GetTextMapPropagator()
+	carrier := make(propagation.HeaderCarrier)
+	prop.Inject(ctx, carrier)
+	for k, v := range carrier {
+		if len(v) > 0 {
+			headers = append(headers, sarama.RecordHeader{
+				Key:   []byte(k),
+				Value: []byte(v[0]), // W3C 格式每个 key 只有一个值
+			})
+		}
+	}
 	// 创建Sarama消息，设置Key为消息ID
 	saramaMsg := &sarama.ProducerMessage{
-		Topic: topic,
-		Key:   sarama.StringEncoder(msgID),
-		Value: sarama.ByteEncoder(data),
+		Topic:   topic,
+		Key:     sarama.StringEncoder(msgID),
+		Value:   sarama.ByteEncoder(data),
+		Headers: headers,
 	}
 	// 使用select配合context，支持超时和取消
 	select {

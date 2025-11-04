@@ -1,17 +1,19 @@
 package data
 
 import (
-	v1 "api/auth/v1"
 	"context"
 	"fmt"
-	"pkg/auth"
-	"pkg/model"
 	"time"
 
-	"auth/internal/biz/bo"
-	"auth/internal/data/po"
+	"github.com/xinghe903/chatify/pkg/auth"
+	"github.com/xinghe903/chatify/pkg/model"
 
-	"auth/internal/biz"
+	v1 "github.com/xinghe903/chatify/api/auth/v1"
+
+	"github.com/xinghe903/chatify/auth/internal/biz/bo"
+	"github.com/xinghe903/chatify/auth/internal/data/po"
+
+	"github.com/xinghe903/chatify/auth/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"gorm.io/gorm"

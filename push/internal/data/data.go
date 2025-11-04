@@ -3,10 +3,12 @@ package data
 import (
 	"context"
 	"fmt"
-	"pkg/model"
-	"push/internal/conf"
-	"push/internal/data/po"
 	"time"
+
+	"github.com/xinghe903/chatify/push/internal/conf"
+	"github.com/xinghe903/chatify/push/internal/data/po"
+
+	"github.com/xinghe903/chatify/pkg/model"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"

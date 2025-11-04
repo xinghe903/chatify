@@ -1,13 +1,15 @@
 package biz
 
 import (
-	access_v1 "api/access/v1"
-	im_v1 "api/im/v1"
-	v1 "api/push/v1"
 	"context"
 	"errors"
-	"push/internal/biz/bo"
 	"time"
+
+	"github.com/xinghe903/chatify/push/internal/biz/bo"
+
+	access_v1 "github.com/xinghe903/chatify/api/access/v1"
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	v1 "github.com/xinghe903/chatify/api/push/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -46,7 +48,7 @@ type MessageRepo interface {
 
 type OfflineRepo interface {
 	ArchiveMessages(ctx context.Context, taskId string, messages []*bo.Message) error
-	RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error)
+	RetrieveOfflineMessages(ctx context.Context, userID, latestId string) ([]*bo.Message, error)
 	AcknowledgeMessages(ctx context.Context, userId string, messageIds []string) error
 }
 

@@ -1,4 +1,4 @@
-module api
+module github.com/xinghe903/chatify/api
 
 go 1.24.0
 

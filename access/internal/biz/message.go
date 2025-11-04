@@ -1,8 +1,9 @@
 package biz
 
 import (
-	im_v1 "api/im/v1"
 	"context"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

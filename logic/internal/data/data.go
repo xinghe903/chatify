@@ -3,9 +3,11 @@ package data
 import (
 	"context"
 	"fmt"
-	"logic/internal/conf"
-	"pkg/model"
 	"time"
+
+	"github.com/xinghe903/chatify/logic/internal/conf"
+
+	"github.com/xinghe903/chatify/pkg/model"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -16,7 +18,15 @@ import (
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewPushServiceClient, NewEtcdClient, NewRegistry, NewDiscovery, NewKafkaConsumer, NewMessageDedupRepo)
+var ProviderSet = wire.NewSet(NewData,
+	NewPushServiceClient,
+	NewEtcdClient,
+	NewRegistry,
+	NewDiscovery,
+	NewKafkaConsumer,
+	NewMessageDedupRepo,
+	NewKafkaProducer,
+)
 
 // Data 数据层主结构
 type Data struct {

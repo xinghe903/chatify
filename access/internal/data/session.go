@@ -1,11 +1,12 @@
 package data
 
 import (
-	"access/internal/biz"
-	"access/internal/biz/bo"
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/xinghe903/chatify/access/internal/biz"
+	"github.com/xinghe903/chatify/access/internal/biz/bo"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

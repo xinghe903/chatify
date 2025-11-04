@@ -5,7 +5,7 @@ package logic.v1;
 import "im/v1/message.proto";
 import "google/api/annotations.proto";
 
-option go_package = "api/logic/v1;v1";
+option go_package = "github.com/xinghe903/chatify/api/logic/v1;v1";
 
 service LogicService {
   // 接收原始消息，返回是否允许发送

@@ -7,11 +7,11 @@
 package main
 
 import (
-	"access/internal/biz"
-	"access/internal/conf"
-	"access/internal/data"
-	"access/internal/server"
-	"access/internal/service"
+	"github.com/xinghe903/chatify/access/internal/biz"
+	"github.com/xinghe903/chatify/access/internal/conf"
+	"github.com/xinghe903/chatify/access/internal/data"
+	"github.com/xinghe903/chatify/access/internal/server"
+	"github.com/xinghe903/chatify/access/internal/service"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 )

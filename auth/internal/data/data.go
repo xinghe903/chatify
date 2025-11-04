@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"auth/internal/conf"
-	"auth/internal/data/po"
-	"pkg/model"
+	"github.com/xinghe903/chatify/auth/internal/conf"
+	"github.com/xinghe903/chatify/auth/internal/data/po"
+
+	"github.com/xinghe903/chatify/pkg/model"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"

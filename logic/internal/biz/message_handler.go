@@ -1,10 +1,13 @@
 package biz
 
 import (
-	im_v1 "api/im/v1"
 	"context"
 	"encoding/json"
 	"errors"
+
+	"github.com/xinghe903/chatify/logic/internal/biz/bo"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -28,21 +31,28 @@ type MessageDedupRepo interface {
 	CheckAndSetDedup(ctx context.Context, msgId string) (bool, error)
 }
 
+type MqProducer interface {
+	SendMessageWithDataReport(ctx context.Context, message *bo.DataReport) error
+}
+
 type UserMessageHandler struct {
-	log       *log.Helper
-	consumer  Consumer
-	dedupRepo MessageDedupRepo
+	log        *log.Helper
+	consumer   Consumer
+	dedupRepo  MessageDedupRepo
+	mqProducer MqProducer
 }
 
 func NewUserMessageHandler(
 	logger log.Logger,
 	consumer Consumer,
 	dedupRepo MessageDedupRepo,
+	mqProducer MqProducer,
 ) (*UserMessageHandler, func()) {
 	handle := &UserMessageHandler{
-		log:       log.NewHelper(logger),
-		consumer:  consumer,
-		dedupRepo: dedupRepo,
+		log:        log.NewHelper(logger),
+		consumer:   consumer,
+		dedupRepo:  dedupRepo,
+		mqProducer: mqProducer,
 	}
 	ctx, cancel := context.WithCancelCause(context.TODO())
 	handle.consumer.Start(ctx, handle.Handle())
@@ -99,6 +109,15 @@ func (h *UserMessageHandler) chat(ctx context.Context, baseMsg *im_v1.BaseMessag
 func (h *UserMessageHandler) dataReport(ctx context.Context, baseMsg *im_v1.BaseMessage) error {
 	if baseMsg.TargetType != im_v1.TargetType_SYSTEM {
 		return ErrInvalidTargetType
+	}
+	var dataReport bo.DataReport
+	if err := json.Unmarshal(baseMsg.Content, &dataReport); err != nil {
+		h.log.WithContext(ctx).Errorf("data report json unmarshal error: %v", err)
+		return err
+	}
+	if err := h.mqProducer.SendMessageWithDataReport(ctx, &dataReport); err != nil {
+		h.log.WithContext(ctx).Errorf("send data report message error: %v", err)
+		return err
 	}
 	h.log.WithContext(ctx).Infof("Receive data report message. baseMsg: %v", baseMsg)
 	return nil

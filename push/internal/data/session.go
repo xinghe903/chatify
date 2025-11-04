@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"push/internal/biz"
-	"push/internal/biz/bo"
+
+	"github.com/xinghe903/chatify/push/internal/biz"
+	"github.com/xinghe903/chatify/push/internal/biz/bo"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/redis/go-redis/v9"

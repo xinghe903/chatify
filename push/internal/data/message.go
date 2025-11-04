@@ -2,10 +2,12 @@ package data
 
 import (
 	"context"
-	"pkg/auth"
-	"push/internal/biz"
-	"push/internal/biz/bo"
-	"push/internal/data/po"
+
+	"github.com/xinghe903/chatify/push/internal/biz"
+	"github.com/xinghe903/chatify/push/internal/biz/bo"
+	"github.com/xinghe903/chatify/push/internal/data/po"
+
+	"github.com/xinghe903/chatify/pkg/auth"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

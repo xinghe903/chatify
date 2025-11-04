@@ -3,12 +3,13 @@ package data
 import (
 	"context"
 	"errors"
-	"pkg/auth"
 	"time"
 
-	"offline/internal/biz"
-	"offline/internal/biz/bo"
-	"offline/internal/data/po"
+	"github.com/xinghe903/chatify/pkg/auth"
+
+	"github.com/xinghe903/chatify/offline/internal/biz"
+	"github.com/xinghe903/chatify/offline/internal/biz/bo"
+	"github.com/xinghe903/chatify/offline/internal/data/po"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

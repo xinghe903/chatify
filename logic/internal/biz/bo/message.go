@@ -1,8 +1,8 @@
 package bo
 
 import (
-	im_v1 "api/im/v1"
-	v1 "api/logic/v1"
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	v1 "github.com/xinghe903/chatify/api/logic/v1"
 )
 
 const (
