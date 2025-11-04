@@ -10,6 +10,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/prometheus/client_golang v1.23.0
 	github.com/redis/go-redis/v9 v9.14.0
+	github.com/xinghe903/chatify/api v0.0.0-beta002
+	github.com/xinghe903/chatify/pkg v0.0.0-beta002
 	go.etcd.io/etcd/client/v3 v3.6.5
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
@@ -65,8 +67,6 @@ require (
 	github.com/sony/sonyflake v1.3.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/xinghe903/chatify/api v0.0.0-beta002 // indirect
-	github.com/xinghe903/chatify/pkg v0.0.0-beta002 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.etcd.io/etcd/api/v3 v3.6.5 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.6.5 // indirect

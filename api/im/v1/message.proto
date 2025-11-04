@@ -3,7 +3,7 @@ syntax = "proto3";
 package im.v1;
 
 
-option go_package = "api/im/v1;v1";
+option go_package = "github.com/xinghe903/chatify/api/im/v1;v1";
 
 
 // 消息类型枚举
