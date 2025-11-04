@@ -2,8 +2,9 @@ package biz
 
 import (
 	"context"
-	"offline/internal/biz/bo"
 	"time"
+
+	"github.com/xinghe903/chatify/offline/internal/biz/bo"
 
 	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 	v1 "github.com/xinghe903/chatify/api/offline/v1"

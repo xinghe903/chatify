@@ -2,11 +2,12 @@ package biz
 
 import (
 	"context"
-	"logic/internal/conf"
+
+	"github.com/xinghe903/chatify/logic/internal/conf"
 
 	v1 "github.com/xinghe903/chatify/api/logic/v1"
 
-	"logic/internal/biz/bo"
+	"github.com/xinghe903/chatify/logic/internal/biz/bo"
 
 	"github.com/xinghe903/chatify/pkg/auth"
 

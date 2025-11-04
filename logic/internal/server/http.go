@@ -1,8 +1,8 @@
 package server
 
 import (
-	"logic/internal/conf"
-	"logic/internal/service"
+	"github.com/xinghe903/chatify/logic/internal/conf"
+	"github.com/xinghe903/chatify/logic/internal/service"
 
 	"github.com/xinghe903/chatify/pkg/monitoring"
 

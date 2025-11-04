@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"access/internal/biz"
-	"access/internal/biz/bo"
-	"access/internal/conf"
+	"github.com/xinghe903/chatify/access/internal/biz"
+	"github.com/xinghe903/chatify/access/internal/biz/bo"
+	"github.com/xinghe903/chatify/access/internal/conf"
 
 	"github.com/xinghe903/chatify/pkg/auth"
 

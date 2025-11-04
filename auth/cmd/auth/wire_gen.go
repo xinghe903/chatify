@@ -7,16 +7,14 @@
 package main
 
 import (
-	"auth/internal/biz"
-	"auth/internal/conf"
-	"auth/internal/data"
-	"auth/internal/server"
-	"auth/internal/service"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-)
+	"github.com/xinghe903/chatify/auth/internal/biz"
+	"github.com/xinghe903/chatify/auth/internal/conf"
+	"github.com/xinghe903/chatify/auth/internal/data"
+	"github.com/xinghe903/chatify/auth/internal/server"
+	"github.com/xinghe903/chatify/auth/internal/service"
 
-import (
 	_ "go.uber.org/automaxprocs"
 )
 

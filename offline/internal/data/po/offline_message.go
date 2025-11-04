@@ -1,8 +1,9 @@
 package po
 
 import (
-	"offline/internal/biz/bo"
 	"strings"
+
+	"github.com/xinghe903/chatify/offline/internal/biz/bo"
 
 	"github.com/xinghe903/chatify/pkg/model"
 

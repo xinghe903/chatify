@@ -1,10 +1,10 @@
 package server
 
 import (
-	"auth/internal/conf"
-	"auth/internal/service"
+	"github.com/xinghe903/chatify/auth/internal/conf"
+	"github.com/xinghe903/chatify/auth/internal/service"
 
-	v1 "github.com/xinghe903/chatify/apiauth/v1"
+	v1 "github.com/xinghe903/chatify/api/auth/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/logging"

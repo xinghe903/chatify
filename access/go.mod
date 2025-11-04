@@ -1,4 +1,4 @@
-module access
+module github.com/xinghe903/chatify/access
 
 go 1.24.7
 
@@ -10,8 +10,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/prometheus/client_golang v1.23.0
 	github.com/redis/go-redis/v9 v9.14.0
-	github.com/xinghe903/chatify/api v0.0.0-beta002
-	github.com/xinghe903/chatify/pkg v0.0.0-beta002
+	github.com/xinghe903/chatify/api v0.0.0-beta003
+	github.com/xinghe903/chatify/pkg v0.0.0-beta003
 	go.etcd.io/etcd/client/v3 v3.6.5
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0

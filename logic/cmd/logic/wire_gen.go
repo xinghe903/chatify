@@ -9,14 +9,12 @@ package main
 import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-	"logic/internal/biz"
-	"logic/internal/conf"
-	"logic/internal/data"
-	"logic/internal/server"
-	"logic/internal/service"
-)
+	"github.com/xinghe903/chatify/logic/internal/biz"
+	"github.com/xinghe903/chatify/logic/internal/conf"
+	"github.com/xinghe903/chatify/logic/internal/data"
+	"github.com/xinghe903/chatify/logic/internal/server"
+	"github.com/xinghe903/chatify/logic/internal/service"
 
-import (
 	_ "go.uber.org/automaxprocs"
 )
 

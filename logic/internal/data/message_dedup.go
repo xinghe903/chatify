@@ -3,8 +3,9 @@ package data
 import (
 	"context"
 	"fmt"
-	"logic/internal/biz"
 	"time"
+
+	"github.com/xinghe903/chatify/logic/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/redis/go-redis/v9"

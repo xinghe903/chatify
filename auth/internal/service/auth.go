@@ -7,10 +7,10 @@ import (
 
 	"github.com/xinghe903/chatify/pkg/auth"
 
-	"auth/internal/biz"
-	"auth/internal/biz/bo"
+	"github.com/xinghe903/chatify/auth/internal/biz"
+	"github.com/xinghe903/chatify/auth/internal/biz/bo"
 
-	v1 "github.com/xinghe903/chatify/apiauth/v1"
+	v1 "github.com/xinghe903/chatify/api/auth/v1"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"

@@ -3,9 +3,10 @@ package data
 import (
 	"context"
 	"fmt"
-	"logic/internal/biz"
-	"logic/internal/biz/bo"
-	"logic/internal/conf"
+
+	"github.com/xinghe903/chatify/logic/internal/biz"
+	"github.com/xinghe903/chatify/logic/internal/biz/bo"
+	"github.com/xinghe903/chatify/logic/internal/conf"
 
 	"github.com/xinghe903/chatify/pkg/auth"
 

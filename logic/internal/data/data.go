@@ -3,8 +3,9 @@ package data
 import (
 	"context"
 	"fmt"
-	"logic/internal/conf"
 	"time"
+
+	"github.com/xinghe903/chatify/logic/internal/conf"
 
 	"github.com/xinghe903/chatify/pkg/model"
 

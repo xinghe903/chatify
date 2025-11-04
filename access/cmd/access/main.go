@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	"access/internal/conf"
+	"github.com/xinghe903/chatify/access/internal/conf"
 
 	"github.com/xinghe903/chatify/pkg/monitoring"
 

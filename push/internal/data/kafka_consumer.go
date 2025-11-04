@@ -2,9 +2,10 @@ package data
 
 import (
 	"context"
-	"push/internal/biz"
-	"push/internal/conf"
 	"time"
+
+	"github.com/xinghe903/chatify/push/internal/biz"
+	"github.com/xinghe903/chatify/push/internal/conf"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"go.opentelemetry.io/otel"

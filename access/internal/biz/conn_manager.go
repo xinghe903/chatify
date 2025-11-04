@@ -1,11 +1,12 @@
 package biz
 
 import (
-	"access/internal/biz/bo"
 	"context"
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/xinghe903/chatify/access/internal/biz/bo"
 
 	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 	v1 "github.com/xinghe903/chatify/api/logic/v1"

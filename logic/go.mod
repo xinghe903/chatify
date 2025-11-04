@@ -1,24 +1,22 @@
-module logic
+module github.com/xinghe903/chatify/logic
 
 go 1.24.7
 
-replace api => ../api
-
 require (
-	api v0.0.0-00010101000000-000000000000
 	github.com/IBM/sarama v1.46.3
 	github.com/go-kratos/kratos/contrib/registry/etcd/v2 v2.0.0-20250912104010-25b6c0fb9f38
 	github.com/go-kratos/kratos/v2 v2.9.1
 	github.com/google/wire v0.6.0
 	github.com/prometheus/client_golang v1.23.0
 	github.com/redis/go-redis/v9 v9.14.0
+	github.com/xinghe903/chatify/api v0.0.0-beta003
+	github.com/xinghe903/chatify/pkg v0.0.0-beta003
 	go.etcd.io/etcd/client/v3 v3.6.5
 	go.opentelemetry.io/otel v1.38.0
 	go.uber.org/automaxprocs v1.5.1
 	google.golang.org/protobuf v1.36.10
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.0
-	pkg v0.0.0-00010101000000-000000000000
 )
 
 replace (

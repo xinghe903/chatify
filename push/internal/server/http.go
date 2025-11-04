@@ -1,8 +1,8 @@
 package server
 
 import (
-	"push/internal/conf"
-	"push/internal/service"
+	"github.com/xinghe903/chatify/push/internal/conf"
+	"github.com/xinghe903/chatify/push/internal/service"
 
 	"github.com/xinghe903/chatify/pkg/monitoring"
 

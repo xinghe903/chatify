@@ -1,9 +1,10 @@
 package po
 
 import (
-	"auth/internal/biz/bo"
 	"strings"
 	"time"
+
+	"github.com/xinghe903/chatify/auth/internal/biz/bo"
 
 	"github.com/xinghe903/chatify/pkg/model"
 

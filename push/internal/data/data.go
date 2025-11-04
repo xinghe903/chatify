@@ -3,9 +3,10 @@ package data
 import (
 	"context"
 	"fmt"
-	"push/internal/conf"
-	"push/internal/data/po"
 	"time"
+
+	"github.com/xinghe903/chatify/push/internal/conf"
+	"github.com/xinghe903/chatify/push/internal/data/po"
 
 	"github.com/xinghe903/chatify/pkg/model"
 

@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"push/internal/biz"
-	"push/internal/conf"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/xinghe903/chatify/push/internal/biz"
+	"github.com/xinghe903/chatify/push/internal/conf"
 
 	v1 "github.com/xinghe903/chatify/api/access/v1"
 	im_v1 "github.com/xinghe903/chatify/api/im/v1"

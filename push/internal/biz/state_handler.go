@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"push/internal/biz/bo"
+
+	"github.com/xinghe903/chatify/push/internal/biz/bo"
 
 	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 	offline_v1 "github.com/xinghe903/chatify/api/offline/v1"

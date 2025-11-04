@@ -6,7 +6,7 @@ import (
 
 	"github.com/xinghe903/chatify/pkg/monitoring"
 
-	"offline/internal/conf"
+	"github.com/xinghe903/chatify/offline/internal/conf"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"

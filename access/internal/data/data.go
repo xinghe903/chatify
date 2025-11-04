@@ -1,10 +1,11 @@
 package data
 
 import (
-	"access/internal/conf"
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/xinghe903/chatify/access/internal/conf"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"

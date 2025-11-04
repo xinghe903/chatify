@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 
-	"logic/internal/biz"
+	"github.com/xinghe903/chatify/logic/internal/biz"
 
 	v1 "github.com/xinghe903/chatify/api/logic/v1"
 )

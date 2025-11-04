@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"offline/internal/biz"
-	"offline/internal/biz/bo"
+	"github.com/xinghe903/chatify/offline/internal/biz"
+	"github.com/xinghe903/chatify/offline/internal/biz/bo"
 
 	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 	v1 "github.com/xinghe903/chatify/api/offline/v1"
