@@ -1,6 +1,6 @@
 package bo
 
-import im_v1 "api/im/v1"
+import im_v1 "github.com/xinghe903/chatify/api/im/v1"
 
 const (
 	MaxMessageCount int = 1000

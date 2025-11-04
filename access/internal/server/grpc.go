@@ -3,8 +3,10 @@ package server
 import (
 	"access/internal/conf"
 	"access/internal/service"
-	v1 "api/access/v1"
-	"pkg/monitoring"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
+
+	v1 "github.com/xinghe903/chatify/api/access/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"

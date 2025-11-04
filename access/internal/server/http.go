@@ -4,7 +4,8 @@ import (
 	"access/internal/conf"
 	"access/internal/service"
 	basehttp "net/http"
-	"pkg/monitoring"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"

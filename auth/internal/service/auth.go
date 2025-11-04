@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"pkg/auth"
 	"strconv"
 
-	v1 "api/auth/v1"
+	"github.com/xinghe903/chatify/pkg/auth"
+
 	"auth/internal/biz"
 	"auth/internal/biz/bo"
+
+	v1 "github.com/xinghe903/chatify/apiauth/v1"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"

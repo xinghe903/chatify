@@ -1,9 +1,10 @@
 package server
 
 import (
-	"pkg/monitoring"
 	"push/internal/conf"
 	"push/internal/service"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"

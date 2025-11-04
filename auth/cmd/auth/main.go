@@ -5,7 +5,8 @@ import (
 	"os"
 
 	"auth/internal/conf"
-	"pkg/monitoring"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"

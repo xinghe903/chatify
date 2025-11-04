@@ -7,7 +7,8 @@ import (
 
 	"auth/internal/conf"
 	"auth/internal/data/po"
-	"pkg/model"
+
+	"github.com/xinghe903/chatify/pkg/model"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"

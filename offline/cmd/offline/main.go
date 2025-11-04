@@ -3,7 +3,8 @@ package main
 import (
 	"flag"
 	"os"
-	"pkg/monitoring"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
 
 	"offline/internal/conf"
 

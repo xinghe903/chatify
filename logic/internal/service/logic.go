@@ -5,8 +5,9 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 
-	v1 "api/logic/v1"
 	"logic/internal/biz"
+
+	v1 "github.com/xinghe903/chatify/api/logic/v1"
 )
 
 // LogicService is a greeter service.

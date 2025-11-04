@@ -1,12 +1,14 @@
 package biz
 
 import (
-	v1 "api/logic/v1"
 	"context"
 	"logic/internal/conf"
 
+	v1 "github.com/xinghe903/chatify/api/logic/v1"
+
 	"logic/internal/biz/bo"
-	"pkg/auth"
+
+	"github.com/xinghe903/chatify/pkg/auth"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

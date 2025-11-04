@@ -168,6 +168,10 @@ github.com/tklauser/go-sysconf v0.3.11/go.mod h1:GqXfhXY3kiPa0nAXPDIQIWzJbMCB7Am
 github.com/tklauser/numcpus v0.6.0/go.mod h1:FEZLMke0lhOUG6w2JadTzp0a+Nl8PF/GFkQ5UVIcaL4=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
+github.com/xinghe903/chatify/api v0.0.0-beta002 h1:0rG2dGJ838ELL77MCuJoaV9EHhZwPWR4SyrcjC/FVx8=
+github.com/xinghe903/chatify/api v0.0.0-beta002/go.mod h1:1rOlZ8AQ2ouPMRFNTt5UK3ptvotD1lkNRHDsZlU89vs=
+github.com/xinghe903/chatify/pkg v0.0.0-beta002 h1:EMT1W+323LKVeHAnDNBfff/J+DLcSmTBoBa2l2szfWE=
+github.com/xinghe903/chatify/pkg v0.0.0-beta002/go.mod h1:D1bZZGWdX/IlIGsyJkS+3+2IVhvaPVw9ocIs33hbYC4=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=

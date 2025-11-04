@@ -1,12 +1,14 @@
 package data
 
 import (
-	v1 "api/auth/v1"
 	"context"
 	"fmt"
-	"pkg/auth"
-	"pkg/model"
 	"time"
+
+	"github.com/xinghe903/chatify/pkg/auth"
+	"github.com/xinghe903/chatify/pkg/model"
+
+	v1 "github.com/xinghe903/chatify/apiauth/v1"
 
 	"auth/internal/biz/bo"
 	"auth/internal/data/po"

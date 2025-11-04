@@ -3,8 +3,9 @@ package data
 import (
 	"context"
 	"errors"
-	"pkg/auth"
 	"time"
+
+	"github.com/xinghe903/chatify/pkg/auth"
 
 	"offline/internal/biz"
 	"offline/internal/biz/bo"

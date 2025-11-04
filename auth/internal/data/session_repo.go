@@ -1,15 +1,17 @@
 package data
 
 import (
-	v1 "api/auth/v1"
 	"auth/internal/biz"
 	"auth/internal/biz/bo"
 	"auth/internal/data/po"
 	"context"
 	"encoding/json"
 	"fmt"
-	"pkg/auth"
 	"time"
+
+	"github.com/xinghe903/chatify/pkg/auth"
+
+	v1 "github.com/xinghe903/chatify/apiauth/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/redis/go-redis/v9"

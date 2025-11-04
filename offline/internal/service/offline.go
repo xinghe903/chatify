@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 
-	im_v1 "api/im/v1"
-	v1 "api/offline/v1"
 	"offline/internal/biz"
 	"offline/internal/biz/bo"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	v1 "github.com/xinghe903/chatify/api/offline/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -62,7 +63,10 @@ func (s *OfflineService) RetrieveOfflineMessages(ctx context.Context, in *v1.Ret
 			Content:     msg.Content,
 		}
 	}
-	return &v1.RetrieveResponse{}, nil
+	s.log.WithContext(ctx).Debugf("RetrieveOfflineMessages request processed successfully. userId=%s, lastMessageId=%s, messageCount=%d", in.UserId, in.LastMessageId, len(messages))
+	return &v1.RetrieveResponse{
+		Message: data,
+	}, nil
 }
 
 func (s *OfflineService) AcknowledgeMessages(ctx context.Context, in *v1.AckRequest) (*v1.AckResponse, error) {

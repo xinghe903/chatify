@@ -1,10 +1,12 @@
 package server
 
 import (
-	v1 "api/logic/v1"
 	"logic/internal/conf"
 	"logic/internal/service"
-	"pkg/monitoring"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
+
+	v1 "github.com/xinghe903/chatify/api/logic/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"

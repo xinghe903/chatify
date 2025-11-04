@@ -36,7 +36,7 @@ monitoring:
   logging:
     level: debug
     format: json
-    output: stdout
+    output: ./log/biz.log
   metrics:
     prometheus:
       endpoint: :2112

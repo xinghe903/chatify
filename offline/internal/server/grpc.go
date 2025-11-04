@@ -1,10 +1,12 @@
 package server
 
 import (
-	offline_v1 "api/offline/v1"
 	"offline/internal/conf"
 	"offline/internal/service"
-	"pkg/monitoring"
+
+	"github.com/xinghe903/chatify/pkg/monitoring"
+
+	offline_v1 "github.com/xinghe903/chatify/api/offline/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/metrics"

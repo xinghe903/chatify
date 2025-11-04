@@ -1,14 +1,16 @@
 package data
 
 import (
-	im_v1 "api/im/v1"
-	pb "api/push/v1"
 	"context"
 	"fmt"
 	"logic/internal/biz"
 	"logic/internal/biz/bo"
 	"logic/internal/conf"
-	"pkg/auth"
+
+	"github.com/xinghe903/chatify/pkg/auth"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	pb "github.com/xinghe903/chatify/api/push/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"

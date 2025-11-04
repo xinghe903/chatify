@@ -1,11 +1,12 @@
 package biz
 
 import (
-	im_v1 "api/im/v1"
-	v1 "api/offline/v1"
 	"context"
 	"offline/internal/biz/bo"
 	"time"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	v1 "github.com/xinghe903/chatify/api/offline/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 )

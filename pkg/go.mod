@@ -1,4 +1,4 @@
-module pkg
+module github.com/xinghe903/chatify/pkg
 
 go 1.24.0
 

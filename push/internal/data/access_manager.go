@@ -1,8 +1,6 @@
 package data
 
 import (
-	v1 "api/access/v1"
-	im_v1 "api/im/v1"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	v1 "github.com/xinghe903/chatify/api/access/v1"
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"

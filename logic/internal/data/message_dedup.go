@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	redisDedupKeyPrefix  = "kafka:dedup:msg:"
+	redisDedupKeyPrefix  = "chatify:logic:kafka:dedup:msg:"
 	redisDedupExpiration = 24 * time.Hour // 1天过期时间
 )
 
@@ -32,14 +32,14 @@ func NewMessageDedupRepo(data *Data, logger log.Logger) biz.MessageDedupRepo {
 }
 
 // CheckAndSetDedup 检查消息是否已消费，如果未消费则标记为已消费
-// 使用 Redis Set 集合存储消息ID，key格式为：kafka:dedup:msg:{msgId}
+// 使用 Redis Set 集合存储消息ID，key格式为：chatify:logic:kafka:dedup:msg:{msgId}
 // 返回true表示消息未被消费过，false表示消息已被消费过
 func (r *messageDedupRepo) CheckAndSetDedup(ctx context.Context, msgId string) (bool, error) {
 	if msgId == "" {
 		return false, fmt.Errorf("msgId cannot be empty")
 	}
 
-	// 格式化Redis key: kafka:dedup:msg:{msgId}
+	// 格式化Redis key: chatify:logic:kafka:dedup:msg:{msgId}
 	key := redisDedupKeyPrefix + msgId
 
 	// 使用 Redis Set 的 SADD 命令添加消息ID到集合中
@@ -62,4 +62,3 @@ func (r *messageDedupRepo) CheckAndSetDedup(ctx context.Context, msgId string) (
 
 	return false, nil // 消息已被消费过（Set 中已存在）
 }
-

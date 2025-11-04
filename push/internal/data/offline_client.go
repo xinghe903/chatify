@@ -1,14 +1,16 @@
 package data
 
 import (
-	im_v1 "api/im/v1"
-	pb "api/offline/v1"
 	"context"
 	"fmt"
-	"pkg/auth"
 	"push/internal/biz"
 	"push/internal/biz/bo"
 	"push/internal/conf"
+
+	"github.com/xinghe903/chatify/pkg/auth"
+
+	im_v1 "github.com/xinghe903/chatify/api/im/v1"
+	pb "github.com/xinghe903/chatify/api/offline/v1"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
@@ -91,12 +93,13 @@ func (p *OfflineClient) ArchiveMessages(ctx context.Context, taskId string, mess
 // @param userID string 用户ID
 // @return []*bo.Message 离线消息列表
 // @return error 错误信息
-func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userID string) ([]*bo.Message, error) {
-	if userID == "" {
+func (p *OfflineClient) RetrieveOfflineMessages(ctx context.Context, userId, latestId string) ([]*bo.Message, error) {
+	if userId == "" {
 		return nil, fmt.Errorf("user id is empty")
 	}
 	resp, err := p.client.RetrieveOfflineMessages(ctx, &pb.RetrieveRequest{
-		UserId: userID,
+		UserId:        userId,
+		LastMessageId: latestId,
 	})
 	if err != nil {
 		return nil, err

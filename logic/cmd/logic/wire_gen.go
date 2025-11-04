@@ -39,13 +39,21 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 		return nil, nil, err
 	}
 	messageDedupRepo := data.NewMessageDedupRepo(dataData, logger)
-	userMessageHandler, cleanup4 := biz.NewUserMessageHandler(logger, consumer, messageDedupRepo)
+	mqProducer, cleanup4, err := data.NewKafkaProducer(bootstrap, logger)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	userMessageHandler, cleanup5 := biz.NewUserMessageHandler(logger, consumer, messageDedupRepo, mqProducer)
 	logicService := service.NewLogicService(logic, logger, userMessageHandler)
 	httpServer := server.NewHTTPServer(bootstrap, logicService, logger)
 	grpcServer := server.NewGRPCServer(bootstrap, logicService, logger)
 	registrar := data.NewRegistry(client)
 	app := newApp(logger, httpServer, grpcServer, registrar)
 	return app, func() {
+		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()

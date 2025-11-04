@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	v1 "admin/api/helloworld/v1"
+	v1 "admin/github.com/xinghe903/chatify/apihelloworld/v1"
 	"admin/internal/biz"
 )
 

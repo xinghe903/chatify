@@ -2,13 +2,7 @@ module access
 
 go 1.24.7
 
-replace (
-	api => ../api
-	pkg => ../pkg
-)
-
 require (
-	api v0.0.0-00010101000000-000000000000
 	github.com/IBM/sarama v1.42.0
 	github.com/go-kratos/kratos/contrib/registry/etcd/v2 v2.0.0-20250912104010-25b6c0fb9f38
 	github.com/go-kratos/kratos/v2 v2.9.1
@@ -21,7 +15,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/automaxprocs v1.5.1
 	google.golang.org/protobuf v1.36.10
-	pkg v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -72,6 +65,8 @@ require (
 	github.com/sony/sonyflake v1.3.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/xinghe903/chatify/api v0.0.0-beta002 // indirect
+	github.com/xinghe903/chatify/pkg v0.0.0-beta002 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.etcd.io/etcd/api/v3 v3.6.5 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.6.5 // indirect
