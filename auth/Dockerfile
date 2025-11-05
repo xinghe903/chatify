@@ -18,6 +18,17 @@ RUN GOPROXY=https://goproxy.cn make build
 
 FROM registry.cn-hangzhou.aliyuncs.com/xinghe903/debian:stable-slim
 
+# 替换为清华镜像源（临时使用 HTTP）
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main" > /etc/apt/sources.list && \
+    echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main" >> /etc/apt/sources.list && \
+    echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main" >> /etc/apt/sources.list
+
+
+# 更新并安装关键包
+RUN apt update && \
+    apt install -y --no-install-recommends ca-certificates netbase && \
+    rm -rf /var/lib/apt/lists/*
+
 # 直接写入新的 sources.list（使用清华镜像，适配 bookworm）
 RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main" > /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main" >> /etc/apt/sources.list && \
@@ -33,8 +44,8 @@ COPY --from=builder /src/bin /app
 
 WORKDIR /app
 
-EXPOSE 8000
-EXPOSE 9000
+EXPOSE 8080
+EXPOSE 9090
 VOLUME /data/conf
 
-CMD ["./server", "-conf", "/data/conf"]
+CMD ["./auth", "-conf", "/data/conf"]
