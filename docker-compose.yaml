@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 services:
   # Nginx 服务
@@ -16,6 +16,8 @@ services:
     restart: unless-stopped
     networks:
       - chatify-network
+    profiles:
+      - "nginx"  # 只有在指定 profile 时才启动
 
   # Redis 服务
   redis:
@@ -49,7 +51,7 @@ services:
       
       # 监听器配置
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       
       # 存储配置
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
@@ -63,6 +65,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
     volumes:
+    # chown -R 1000:1000 ./volume/kafka/data
       - ./volume/kafka/data:/tmp/kraft-combined-logs
     restart: unless-stopped
     networks:
@@ -115,6 +118,83 @@ services:
     restart: unless-stopped
     networks:
       - chatify-network
+
+  access:
+    build: ./access
+    ports:
+      - "8081:8081"   # HTTP
+      - "9092:9092"   # gRPC
+    volumes:
+      - ./access/configs:/data/conf:ro  # 可选：挂载配置目录便于热更新
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+      - etcd
+    networks:
+      - chatify-network
+  push:
+    build: ./push
+    ports:
+      - "8033:8033"   # HTTP
+      - "9033:9033"   # gRPC
+    volumes:
+      - ./push/configs:/data/conf:ro  # 可选：挂载配置目录便于热更新
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+      - etcd
+    networks:
+      - chatify-network
+  logic:
+    build: ./logic
+    ports:
+      - "8034:8034"   # HTTP
+      - "9034:9034"   # gRPC
+    volumes:
+      - ./logic/configs:/data/conf:ro  # 可选：挂载配置目录便于热更新
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+      - etcd
+    networks:
+      - chatify-network
+  offline:
+    build: ./offline
+    ports:
+      - "8023:8023"   # HTTP
+      - "9023:9023"   # gRPC
+    volumes:
+      - ./offline/configs:/data/conf:ro  # 可选：挂载配置目录便于热更新
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+      - etcd
+    networks:
+      - chatify-network
+  auth:
+    build: ./auth
+    ports:
+      - "8080:8080"   # HTTP
+      - "9090:9090"   # gRPC
+    volumes:
+      - ./auth/configs:/data/conf:ro  # 可选：挂载配置目录便于热更新
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+      - etcd
+    networks:
+      - chatify-network
+
 
 # 定义网络
 networks:
