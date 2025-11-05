@@ -1,27 +1,27 @@
 server:
   http:
     addr: 0.0.0.0:8034
-    timeout: 1s
+    timeout: 2s
   grpc:
     addr: 0.0.0.0:9034
-    timeout: 1s
+    timeout: 2s
   secret: "123456"  # 内部系统secret固定
 data:
   database:
     driver: mysql
-    source: myuser:mypassword@tcp(localhost:13306)/chatify?parseTime=true
+    source: myuser:mypassword@tcp(mysql:3306)/chatify?parseTime=true
   redis:
     network: tcp
-    addr: localhost:16379
-    read_timeout: 1s
-    write_timeout: 1s
+    addr: redis:6379
+    read_timeout: 2s
+    write_timeout: 2s
   etcd:
-    endpoints: ["localhost:22379"]
-    dial_timeout: 1s
+    endpoints: ["etcd:2379"]
+    dial_timeout: 2s
     username: ""
     password: ""
   kafka:
-    brokers: ["localhost:19092"]
+    brokers: ["kafka:9092"]
     group_id: chatify
     retry_count: 3
     timeout: 3s
@@ -42,7 +42,7 @@ monitoring:
   logging:
     level: debug
     format: json
-    output: ./log/biz.log
+    output: stdout
   metrics:
     prometheus:
       endpoint: :2112

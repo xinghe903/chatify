@@ -67,7 +67,7 @@ func (k *kafkaConsumer) Start(ctx context.Context, handler biz.MessageHandler) {
 		for {
 			// 消费消息
 			if err := k.consumerGroup.Consume(ctx, k.topics, handler); err != nil {
-				k.log.Errorf("consumer handler error: %v")
+				k.log.Errorf("consumer handler error: %v", err)
 				continue
 			}
 			// 如果 context 被取消，退出循环
