@@ -31,11 +31,11 @@ function randomUserId() {
   return result;
 }
 
-// 生成随机 content_id (content + 3位数字)
+// 生成随机 content_id 
 function randomContentId() {
-  const digits = '0123456789';
+  const digits = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = 'content';
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 10; i++) {
     result += digits.charAt(Math.floor(Math.random() * digits.length));
   }
   return result;
@@ -70,7 +70,7 @@ export default function () {
     expire_time: String(expireTime), // 注意：你的 Lua 脚本中 expire_time 是字符串
   };
 
-  const url = 'http://localhost:8034/chatify/logic/v1/sendSystemPush';
+  const url = 'http://172.24.161.142:8034/chatify/logic/v1/sendSystemPush';
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -84,6 +84,11 @@ export default function () {
   check(res, {
     'status is 200': (r) => r.status === 200,
   });
+
+  if (res.status !== 200) {
+    // 格式化打印错误信息
+    console.log("http code:", res.status, "错误信息：", res.body, "请求参数：", payload)
+  }
 
   // 可选：模拟思考时间（如果需要）
   // sleep(0.1);
